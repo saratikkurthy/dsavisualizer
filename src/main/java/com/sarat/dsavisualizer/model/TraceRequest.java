@@ -7,6 +7,9 @@ import java.util.List;
  * {@code target} is only used by the search endpoints (nullable).
  * {@code value} is the element to push/enqueue/insert (nullable).
  * {@code index} is the position for list insert/delete (nullable).
+ * {@code capacity} is the hash table size (nullable, default 11).
+ * {@code graphEdges} is the graph edge list (nullable).
+ * {@code start} is the graph BFS/DFS start node (nullable).
  */
 public class TraceRequest {
 
@@ -14,6 +17,9 @@ public class TraceRequest {
     private Integer target;
     private Integer value;
     private Integer index;
+    private Integer capacity;
+    private List<List<Integer>> graphEdges;
+    private Integer start;
 
     public TraceRequest() {
     }
@@ -53,5 +59,29 @@ public class TraceRequest {
 
     public void setIndex(Integer index) {
         this.index = index;
+    }
+
+    public Integer getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public List<List<Integer>> getGraphEdges() {
+        return graphEdges;
+    }
+
+    public void setGraphEdges(List<List<Integer>> graphEdges) {
+        this.graphEdges = graphEdges;
+    }
+
+    public Integer getStart() {
+        return start;
+    }
+
+    public void setStart(Integer start) {
+        this.start = start;
     }
 }
