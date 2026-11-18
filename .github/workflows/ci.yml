@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (Spring Boot)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: maven
+      - name: Build and test
+        working-directory: backend
+        run: mvn -B -q verify
+
+  frontend:
+    name: Frontend (React + Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  # Deployment is handled by the platforms, not by this workflow:
+  #  - Vercel: connect the repo at vercel.com (Root Directory: frontend).
+  #    It deploys automatically on every push to main.
+  #  - Render: connect the repo (or use render.yaml Blueprint) with
+  #    Root Directory: backend. It rebuilds on every push to main.
+  # This workflow is the gate: if build or tests fail here, the push
+  # is red and the platforms still deploy only the last green commit
+  # when using their GitHub integration with "auto-deploy" off, or
+  # you can wire a deploy step here later if you prefer.
