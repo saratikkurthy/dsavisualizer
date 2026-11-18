@@ -3,8 +3,12 @@ package com.sarat.dsavisualizer.controller;
 import com.sarat.dsavisualizer.model.Step;
 import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
+import com.sarat.dsavisualizer.service.BstService;
+import com.sarat.dsavisualizer.service.LinkedListService;
+import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.SearchService;
 import com.sarat.dsavisualizer.service.SortingService;
+import com.sarat.dsavisualizer.service.StackService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +26,13 @@ import java.util.Map;
  *
  * CORS: allow-all for now (dev). In prod, restrict to the Vercel
  * domain — see DESIGN.md.
+ *
+ * Validation rule (Phase 2): sorting endpoints 400 when values are
+ * missing/empty. Stack push, queue enqueue and BST insert treat an
+ * empty values list as "start empty" and only 400 when the required
+ * value is missing. Pop, dequeue, list delete and list/BST search
+ * return the service's single "empty" Step with 200 on an empty
+ * list, and only 400 when the required index/target is missing.
  */
 @RestController
 @RequestMapping("/api")
@@ -30,17 +41,31 @@ public class VisualizationController {
 
     private final SortingService sortingService;
     private final SearchService searchService;
+    private final StackService stackService;
+    private final QueueService queueService;
+    private final LinkedListService linkedListService;
+    private final BstService bstService;
 
     public VisualizationController(SortingService sortingService,
-                                   SearchService searchService) {
+                                   SearchService searchService,
+                                   StackService stackService,
+                                   QueueService queueService,
+                                   LinkedListService linkedListService,
+                                   BstService bstService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
+        this.stackService = stackService;
+        this.queueService = queueService;
+        this.linkedListService = linkedListService;
+        this.bstService = bstService;
     }
 
     @GetMapping("/health")
     public Map<String, String> health() {
         return Map.of("status", "ok");
     }
+
+    // ---- Sorting (Phase 1) ----
 
     @PostMapping("/sort/bubble")
     public ResponseEntity<?> bubbleSort(@RequestBody TraceRequest request) {
@@ -72,6 +97,30 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("Insertion Sort", steps));
     }
 
+    // ---- Sorting (Phase 2) ----
+
+    @PostMapping("/sort/merge")
+    public ResponseEntity<?> mergeSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sortingService.mergeSort(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Merge Sort", steps));
+    }
+
+    @PostMapping("/sort/quick")
+    public ResponseEntity<?> quickSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sortingService.quickSort(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Quick Sort", steps));
+    }
+
+    // ---- Search (Phase 1) ----
+
     @PostMapping("/search/linear")
     public ResponseEntity<?> linearSearch(@RequestBody TraceRequest request) {
         ResponseEntity<?> error = validateSearch(request);
@@ -94,6 +143,112 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("Binary Search", steps));
     }
 
+    // ---- Stack (Phase 2) ----
+
+    @PostMapping("/stack/push")
+    public ResponseEntity<?> stackPush(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = stackService.push(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("Stack Push", steps));
+    }
+
+    @PostMapping("/stack/pop")
+    public ResponseEntity<?> stackPop(@RequestBody TraceRequest request) {
+        List<Step> steps = stackService.pop(valuesOf(request));
+        return ResponseEntity.ok(new TraceResponse("Stack Pop", steps));
+    }
+
+    // ---- Queue (Phase 2) ----
+
+    @PostMapping("/queue/enqueue")
+    public ResponseEntity<?> queueEnqueue(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = queueService.enqueue(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("Queue Enqueue", steps));
+    }
+
+    @PostMapping("/queue/dequeue")
+    public ResponseEntity<?> queueDequeue(@RequestBody TraceRequest request) {
+        List<Step> steps = queueService.dequeue(valuesOf(request));
+        return ResponseEntity.ok(new TraceResponse("Queue Dequeue", steps));
+    }
+
+    // ---- Linked list (Phase 2) ----
+
+    @PostMapping("/list/insert")
+    public ResponseEntity<?> listInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        error = validateIndex(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = linkedListService.insert(
+                valuesOf(request), request.getValue(), request.getIndex());
+        return ResponseEntity.ok(
+                new TraceResponse("Linked List Insert", steps));
+    }
+
+    @PostMapping("/list/delete")
+    public ResponseEntity<?> listDelete(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateIndex(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = linkedListService.delete(
+                valuesOf(request), request.getIndex());
+        return ResponseEntity.ok(
+                new TraceResponse("Linked List Delete", steps));
+    }
+
+    @PostMapping("/list/search")
+    public ResponseEntity<?> listSearch(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTargetOnly(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = linkedListService.search(
+                valuesOf(request), request.getTarget());
+        return ResponseEntity.ok(
+                new TraceResponse("Linked List Search", steps));
+    }
+
+    // ---- BST (Phase 2) ----
+
+    @PostMapping("/bst/insert")
+    public ResponseEntity<?> bstInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bstService.insert(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("BST Insert", steps));
+    }
+
+    @PostMapping("/bst/search")
+    public ResponseEntity<?> bstSearch(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTargetOnly(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bstService.search(
+                valuesOf(request), request.getTarget());
+        return ResponseEntity.ok(new TraceResponse("BST Search", steps));
+    }
+
+    // ---- Validation helpers ----
+
     /** 400 when values are missing or empty. Null means "no error". */
     private ResponseEntity<?> validateValues(TraceRequest request) {
         if (request == null || request.getValues() == null
@@ -115,5 +270,37 @@ public class VisualizationController {
                     .body(Map.of("error", "target must not be null"));
         }
         return null;
+    }
+
+    /** 400 when the value (push/enqueue/insert) is missing. */
+    private ResponseEntity<?> validateValue(TraceRequest request) {
+        if (request == null || request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "value must not be null"));
+        }
+        return null;
+    }
+
+    /** 400 when the index (list insert/delete) is missing. */
+    private ResponseEntity<?> validateIndex(TraceRequest request) {
+        if (request == null || request.getIndex() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "index must not be null"));
+        }
+        return null;
+    }
+
+    /** 400 when the target (list/BST search) is missing. */
+    private ResponseEntity<?> validateTargetOnly(TraceRequest request) {
+        if (request == null || request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "target must not be null"));
+        }
+        return null;
+    }
+
+    /** Null-safe values accessor (null request or null values → null). */
+    private List<Integer> valuesOf(TraceRequest request) {
+        return request == null ? null : request.getValues();
     }
 }
