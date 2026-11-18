@@ -3,7 +3,11 @@ package com.sarat.dsavisualizer.controller;
 import com.sarat.dsavisualizer.model.Step;
 import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
+import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BstService;
+import com.sarat.dsavisualizer.service.GraphService;
+import com.sarat.dsavisualizer.service.HashTableService;
+import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.SearchService;
@@ -33,6 +37,12 @@ import java.util.Map;
  * value is missing. Pop, dequeue, list delete and list/BST search
  * return the service's single "empty" Step with 200 on an empty
  * list, and only 400 when the required index/target is missing.
+ * Validation rule (Phase 3): heap insert, hash insert and AVL insert
+ * only 400 when the required value is missing (empty values =
+ * "start empty"). Hash search 400s when the target is missing.
+ * Graph BFS/DFS 400 when graphEdges or start is missing.
+ * Heap extract-min returns the service's single "empty" Step
+ * with 200 on an empty heap.
  */
 @RestController
 @RequestMapping("/api")
@@ -45,19 +55,31 @@ public class VisualizationController {
     private final QueueService queueService;
     private final LinkedListService linkedListService;
     private final BstService bstService;
+    private final HeapService heapService;
+    private final HashTableService hashTableService;
+    private final GraphService graphService;
+    private final AvlService avlService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
                                    StackService stackService,
                                    QueueService queueService,
                                    LinkedListService linkedListService,
-                                   BstService bstService) {
+                                   BstService bstService,
+                                   HeapService heapService,
+                                   HashTableService hashTableService,
+                                   GraphService graphService,
+                                   AvlService avlService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
         this.queueService = queueService;
         this.linkedListService = linkedListService;
         this.bstService = bstService;
+        this.heapService = heapService;
+        this.hashTableService = hashTableService;
+        this.graphService = graphService;
+        this.avlService = avlService;
     }
 
     @GetMapping("/health")
@@ -247,6 +269,100 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("BST Search", steps));
     }
 
+    // ---- Min-Heap (Phase 3) ----
+
+    @PostMapping("/heap/insert")
+    public ResponseEntity<?> heapInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = heapService.insert(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("Min-Heap Insert", steps));
+    }
+
+    @PostMapping("/heap/extract-min")
+    public ResponseEntity<?> heapExtractMin(@RequestBody TraceRequest request) {
+        List<Step> steps = heapService.extractMin(valuesOf(request));
+        return ResponseEntity.ok(
+                new TraceResponse("Min-Heap Extract-Min", steps));
+    }
+
+    // ---- Hash table (Phase 3) ----
+
+    @PostMapping("/hash/insert")
+    public ResponseEntity<?> hashInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = hashTableService.insert(
+                valuesOf(request), request.getValue(), request.getCapacity());
+        return ResponseEntity.ok(
+                new TraceResponse("Hash Table Insert", steps));
+    }
+
+    @PostMapping("/hash/search")
+    public ResponseEntity<?> hashSearch(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTargetOnly(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = hashTableService.search(
+                valuesOf(request), request.getTarget(), request.getCapacity());
+        return ResponseEntity.ok(
+                new TraceResponse("Hash Table Search", steps));
+    }
+
+    // ---- Graph BFS/DFS (Phase 3) ----
+
+    @PostMapping("/graph/bfs")
+    public ResponseEntity<?> graphBfs(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateGraph(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.bfs(
+                request.getGraphEdges(), request.getStart());
+        return ResponseEntity.ok(new TraceResponse("Graph BFS", steps));
+    }
+
+    @PostMapping("/graph/dfs")
+    public ResponseEntity<?> graphDfs(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateGraph(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.dfs(
+                request.getGraphEdges(), request.getStart());
+        return ResponseEntity.ok(new TraceResponse("Graph DFS", steps));
+    }
+
+    // ---- AVL tree (Phase 3) ----
+
+    @PostMapping("/avl/insert")
+    public ResponseEntity<?> avlInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = avlService.insert(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("AVL Insert", steps));
+    }
+
+    @PostMapping("/avl/search")
+    public ResponseEntity<?> avlSearch(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTargetOnly(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = avlService.search(
+                valuesOf(request), request.getTarget());
+        return ResponseEntity.ok(new TraceResponse("AVL Search", steps));
+    }
+
     // ---- Validation helpers ----
 
     /** 400 when values are missing or empty. Null means "no error". */
@@ -295,6 +411,20 @@ public class VisualizationController {
         if (request == null || request.getTarget() == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "target must not be null"));
+        }
+        return null;
+    }
+
+    /** 400 when graphEdges is missing/empty or the start node is missing. */
+    private ResponseEntity<?> validateGraph(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        if (request.getStart() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "start must not be null"));
         }
         return null;
     }
