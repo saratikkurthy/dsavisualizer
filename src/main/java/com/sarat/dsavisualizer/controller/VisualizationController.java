@@ -5,11 +5,13 @@ import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BstService;
+import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
+import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.SearchService;
 import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.StackService;
@@ -43,6 +45,9 @@ import java.util.Map;
  * Graph BFS/DFS 400 when graphEdges or start is missing.
  * Heap extract-min returns the service's single "empty" Step
  * with 200 on an empty heap.
+ * Validation rule (Phase 4): counting/radix 400 when values are
+ * missing/empty, any value is negative, or the max exceeds the
+ * limit (counting 100, radix 999999).
  */
 @RestController
 @RequestMapping("/api")
@@ -59,6 +64,8 @@ public class VisualizationController {
     private final HashTableService hashTableService;
     private final GraphService graphService;
     private final AvlService avlService;
+    private final CountingService countingService;
+    private final RadixService radixService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -69,7 +76,9 @@ public class VisualizationController {
                                    HeapService heapService,
                                    HashTableService hashTableService,
                                    GraphService graphService,
-                                   AvlService avlService) {
+                                   AvlService avlService,
+                                   CountingService countingService,
+                                   RadixService radixService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -80,6 +89,8 @@ public class VisualizationController {
         this.hashTableService = hashTableService;
         this.graphService = graphService;
         this.avlService = avlService;
+        this.countingService = countingService;
+        this.radixService = radixService;
     }
 
     @GetMapping("/health")
@@ -139,6 +150,30 @@ public class VisualizationController {
         }
         List<Step> steps = sortingService.quickSort(request.getValues());
         return ResponseEntity.ok(new TraceResponse("Quick Sort", steps));
+    }
+
+    // ---- Sorting (Phase 4) ----
+
+    @PostMapping("/sort/counting")
+    public ResponseEntity<?> countingSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateCountingRadix(
+                request, 100, "Counting sort");
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = countingService.countingSort(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Counting Sort", steps));
+    }
+
+    @PostMapping("/sort/radix")
+    public ResponseEntity<?> radixSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateCountingRadix(
+                request, 999999, "Radix sort");
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = radixService.radixSort(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Radix Sort", steps));
     }
 
     // ---- Search (Phase 1) ----
@@ -425,6 +460,37 @@ public class VisualizationController {
         if (request.getStart() == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "start must not be null"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, any value is negative, or
+     * the max exceeds {@code maxAllowed} (counting: 100, radix:
+     * 999999). Null means "no error".
+     */
+    private ResponseEntity<?> validateCountingRadix(TraceRequest request,
+                                                    int maxAllowed,
+                                                    String algorithm) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        int max = Integer.MIN_VALUE;
+        for (int v : request.getValues()) {
+            if (v < 0) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", algorithm
+                                + " needs non-negative values"));
+            }
+            if (v > max) {
+                max = v;
+            }
+        }
+        if (max > maxAllowed) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", algorithm
+                            + " needs values with max <= " + maxAllowed));
         }
         return null;
     }

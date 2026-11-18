@@ -18,6 +18,10 @@ import java.util.List;
  *   <li>{@code nodes} — BST nodes (null for array-based steps)</li>
  *   <li>{@code edges} — BST parent-to-child edges
  *       (null for array-based steps)</li>
+ *   <li>{@code aux} — counting sort's count array
+ *       (null for every other algorithm)</li>
+ *   <li>{@code buckets} — radix sort's 10 digit buckets
+ *       (null for every other algorithm)</li>
  * </ul>
  *
  * For BST steps {@code data} is empty and {@code nodes}/{@code edges}
@@ -36,8 +40,10 @@ public class Step {
     private int line;
     private List<NodeDto> nodes;
     private List<EdgeDto> edges;
+    private List<Integer> aux;
+    private List<List<Integer>> buckets;
 
-    /** No-arg constructor for Jackson. Nodes/edges stay null. */
+    /** No-arg constructor for Jackson. Nodes/edges/aux/buckets stay null. */
     public Step() {
         this.data = new ArrayList<>();
         this.highlight = new ArrayList<>();
@@ -47,6 +53,8 @@ public class Step {
         this.line = 0;
         this.nodes = null;
         this.edges = null;
+        this.aux = null;
+        this.buckets = null;
     }
 
     public Step(List<Integer> data, List<Integer> highlight,
@@ -60,6 +68,8 @@ public class Step {
         this.line = line;
         this.nodes = null;
         this.edges = null;
+        this.aux = null;
+        this.buckets = null;
     }
 
     /** Full constructor, used by the BST service (nodes + edges). */
@@ -75,6 +85,8 @@ public class Step {
         this.line = line;
         this.nodes = nodes;
         this.edges = edges;
+        this.aux = null;
+        this.buckets = null;
     }
 
     public List<Integer> getData() {
@@ -139,5 +151,21 @@ public class Step {
 
     public void setEdges(List<EdgeDto> edges) {
         this.edges = edges;
+    }
+
+    public List<Integer> getAux() {
+        return aux;
+    }
+
+    public void setAux(List<Integer> aux) {
+        this.aux = aux;
+    }
+
+    public List<List<Integer>> getBuckets() {
+        return buckets;
+    }
+
+    public void setBuckets(List<List<Integer>> buckets) {
+        this.buckets = buckets;
     }
 }
