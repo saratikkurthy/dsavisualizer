@@ -37,6 +37,11 @@ import java.util.Map;
  * all 59 POST trace endpoints (Phase 15's sort/bucket, dp/lis,
  * dp/mcm, string/rabinkarp and trie/delete).</p>
  *
+ * <p>Updated for Phase 16 (2026-11-19): the endpoint list now covers
+ * all 65 POST trace endpoints (Phase 16's sort/quickselect,
+ * fenwick/build, fenwick/prefix, fenwick/update,
+ * string/boyermoore and string/zalgorithm).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -61,6 +66,7 @@ public class HomeController {
                         "POST /api/sort/heapsort",
                         "POST /api/sort/shell",
                         "POST /api/sort/bucket",
+                        "POST /api/sort/quickselect",
                         "POST /api/search/linear",
                         "POST /api/search/binary",
                         "POST /api/stack/push",
@@ -106,9 +112,14 @@ public class HomeController {
                         "POST /api/segmenttree/build",
                         "POST /api/segmenttree/query",
                         "POST /api/segmenttree/update",
+                        "POST /api/fenwick/build",
+                        "POST /api/fenwick/prefix",
+                        "POST /api/fenwick/update",
                         "POST /api/unionfind/union",
                         "POST /api/string/kmp",
                         "POST /api/string/rabinkarp",
+                        "POST /api/string/boyermoore",
+                        "POST /api/string/zalgorithm",
                         "POST /api/backtracking/nqueens"
                 )
         );
