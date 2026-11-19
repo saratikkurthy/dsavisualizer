@@ -22,7 +22,13 @@ import java.util.List;
  * recorded during the recursive insert and its Step is emitted by
  * the caller once the tree is fully re-linked: a snapshot taken
  * mid-rotation would miss the subtree detached by the rotation.
+ * Delete rebalances bottom-up along the recorded path instead, so
+ * each rotation Step is emitted with the tree fully re-linked at
+ * that point; a delete can cause several rotations.
  * Line numbers: compare/visit = 2, rotation = 3, final = 0.
+ *
+ * {@code Node.value} is mutable on purpose: delete with two
+ * children copies the inorder successor's value into the node.
  */
 @Service
 public class AvlService {
@@ -33,7 +39,7 @@ public class AvlService {
 
     /** Internal tree node. x/y are layout coordinates, recomputed on snapshot. */
     private static class Node {
-        final int value;
+        int value;
         final int id;
         int height;
         double x;
@@ -128,6 +134,183 @@ public class AvlService {
         steps.add(avlStep(List.of(),
                 snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
                 "Target " + target + " not found.", LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * Delete a value. The tree is built silently from {@code values},
+     * then the value is deleted like a BST (compare Steps on the way
+     * down, one mutation Step), then the tree is rebalanced
+     * bottom-up from the deletion point: heights are updated and
+     * each unbalanced ancestor is rotated, one rotation Step per
+     * rotation, in bottom-up order (a delete can cause several,
+     * unlike insert). Ends with a final Step, or "X is not in the
+     * tree." / "Tree is empty.".
+     */
+    public List<Step> delete(List<Integer> values, int value) {
+        List<Step> steps = new ArrayList<>();
+        int[] nextId = new int[]{0};
+        Node[] rootRef = new Node[]{null};
+        if (values != null) {
+            for (int v : values) {
+                rootRef[0] = insertRec(rootRef[0], v, null, nextId, rootRef,
+                        new boolean[]{false}, new String[]{null},
+                        new int[]{-1});
+            }
+        }
+        if (rootRef[0] == null) {
+            steps.add(avlStep(List.of(), List.of(), List.of(),
+                    "Tree is empty.", LINE_FINAL));
+            return steps;
+        }
+
+        // Walk down to the value, one compare Step per visited node,
+        // recording the path from the root to the target.
+        List<Node> path = new ArrayList<>();
+        Node cur = rootRef[0];
+        while (cur != null && cur.value != value) {
+            String direction = value < cur.value ? "left" : "right";
+            steps.add(avlStep(List.of(cur.id),
+                    snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                    "Compare " + value + " with node " + cur.value
+                            + " — go " + direction + ".",
+                    LINE_COMPARE));
+            path.add(cur);
+            cur = value < cur.value ? cur.left : cur.right;
+        }
+        if (cur == null) {
+            steps.add(avlStep(List.of(),
+                    snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                    value + " is not in the tree.", LINE_FINAL));
+            return steps;
+        }
+        path.add(cur);
+
+        // Remove cur (BST deletion). rebalanceFrom is the parent of
+        // the physically removed node; the path is extended to the
+        // successor for the two-children case.
+        Node rebalanceFrom;
+        if (cur.left == null && cur.right == null) {
+            // Leaf: unlink it from its parent.
+            rebalanceFrom = path.size() >= 2
+                    ? path.get(path.size() - 2) : null;
+            if (rebalanceFrom == null) {
+                rootRef[0] = null;
+            } else if (rebalanceFrom.left == cur) {
+                rebalanceFrom.left = null;
+            } else {
+                rebalanceFrom.right = null;
+            }
+            steps.add(avlStep(rebalanceFrom == null ? List.of()
+                            : List.of(rebalanceFrom.id),
+                    snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                    "Remove leaf " + value + ".", LINE_SWAP));
+        } else if (cur.left == null || cur.right == null) {
+            // One child: the child takes cur's place.
+            Node child = cur.left != null ? cur.left : cur.right;
+            rebalanceFrom = path.size() >= 2
+                    ? path.get(path.size() - 2) : null;
+            if (rebalanceFrom == null) {
+                rootRef[0] = child;
+            } else if (rebalanceFrom.left == cur) {
+                rebalanceFrom.left = child;
+            } else {
+                rebalanceFrom.right = child;
+            }
+            steps.add(avlStep(List.of(child.id),
+                    snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                    "Replace " + value + " with its child " + child.value
+                            + ".",
+                    LINE_SWAP));
+        } else {
+            // Two children: successor (smallest in the right subtree).
+            Node succParent = cur;
+            Node succ = cur.right;
+            List<Node> succPath = new ArrayList<>();
+            succPath.add(cur);
+            while (succ.left != null) {
+                succParent = succ;
+                succPath.add(succ);
+                succ = succ.left;
+            }
+            int succValue = succ.value;
+            if (succParent == cur) {
+                succParent.right = succ.right;
+            } else {
+                succParent.left = succ.right;
+            }
+            cur.value = succValue;
+            // Rebalance from the successor's parent; the path extends
+            // from the target down to it.
+            path.addAll(succPath.subList(1, succPath.size()));
+            rebalanceFrom = succParent;
+            steps.add(avlStep(List.of(cur.id),
+                    snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                    "Replace " + value + " with successor " + succValue
+                            + ".",
+                    LINE_SWAP));
+        }
+
+        if (rootRef[0] == null) {
+            steps.add(avlStep(List.of(), List.of(), List.of(),
+                    "Deleted " + value + ".", LINE_FINAL));
+            return steps;
+        }
+
+        // Rebalance bottom-up from rebalanceFrom to the root. Each
+        // rotation is re-linked into its parent immediately, so the
+        // snapshot for its Step shows the fully linked tree.
+        if (rebalanceFrom != null) {
+            int startIndex = path.indexOf(rebalanceFrom);
+            for (int k = startIndex; k >= 0; k--) {
+                Node node = path.get(k);
+                updateHeight(node);
+                int bal = balance(node);
+                Node newRoot = node;
+                String rotation = null;
+                if (bal > 1 && balance(node.left) >= 0) {
+                    // Left-left: right rotation at node.
+                    newRoot = rotateRight(node);
+                    rotation = "Right rotation at node " + node.value + ".";
+                } else if (bal > 1) {
+                    // Left-right: left at the child, then right at node.
+                    node.left = rotateLeft(node.left);
+                    newRoot = rotateRight(node);
+                    rotation = "Left-Right rotation at node " + node.value
+                            + ".";
+                } else if (bal < -1 && balance(node.right) <= 0) {
+                    // Right-right: left rotation at node.
+                    newRoot = rotateLeft(node);
+                    rotation = "Left rotation at node " + node.value + ".";
+                } else if (bal < -1) {
+                    // Right-left: right at the child, then left at node.
+                    node.right = rotateRight(node.right);
+                    newRoot = rotateLeft(node);
+                    rotation = "Right-Left rotation at node " + node.value
+                            + ".";
+                }
+                if (rotation != null) {
+                    if (k == 0) {
+                        rootRef[0] = newRoot;
+                    } else {
+                        Node parent = path.get(k - 1);
+                        if (parent.left == node) {
+                            parent.left = newRoot;
+                        } else {
+                            parent.right = newRoot;
+                        }
+                    }
+                    path.set(k, newRoot);
+                    steps.add(avlStep(List.of(node.id),
+                            snapshotNodes(rootRef[0]),
+                            snapshotEdges(rootRef[0]),
+                            rotation, LINE_SWAP));
+                }
+            }
+        }
+        steps.add(avlStep(List.of(),
+                snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                "Deleted " + value + ".", LINE_FINAL));
         return steps;
     }
 

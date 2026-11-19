@@ -16,6 +16,9 @@ import java.util.Map;
  * the build live on Render includes the Swagger (springdoc) code.
  * If "/" still 404s, Render is still running the older build.</p>
  *
+ * <p>Updated for Phase 4 (2026-11-18): the endpoint list now covers
+ * all 26 POST trace endpoints, not just the five Phase 1 ones.</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -33,8 +36,29 @@ public class HomeController {
                         "POST /api/sort/bubble",
                         "POST /api/sort/selection",
                         "POST /api/sort/insertion",
+                        "POST /api/sort/merge",
+                        "POST /api/sort/quick",
+                        "POST /api/sort/counting",
+                        "POST /api/sort/radix",
                         "POST /api/search/linear",
-                        "POST /api/search/binary"
+                        "POST /api/search/binary",
+                        "POST /api/stack/push",
+                        "POST /api/stack/pop",
+                        "POST /api/queue/enqueue",
+                        "POST /api/queue/dequeue",
+                        "POST /api/list/insert",
+                        "POST /api/list/delete",
+                        "POST /api/list/search",
+                        "POST /api/bst/insert",
+                        "POST /api/bst/search",
+                        "POST /api/heap/insert",
+                        "POST /api/heap/extract-min",
+                        "POST /api/hash/insert",
+                        "POST /api/hash/search",
+                        "POST /api/graph/bfs",
+                        "POST /api/graph/dfs",
+                        "POST /api/avl/insert",
+                        "POST /api/avl/search"
                 )
         );
     }
