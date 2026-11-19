@@ -5,6 +5,10 @@ package com.sarat.dsavisualizer.model;
  * {@code x} and {@code y} are the screen coordinates the backend
  * computes (see BstService): in-order rank for x, depth for y.
  *
+ * {@code label} is the character for Trie nodes (Phase 8): the
+ * frontend shows {@code label} when present, else {@code value}.
+ * Null for every other node.
+ *
  * Jackson-friendly POJO: no-arg constructor plus getters/setters.
  */
 public class NodeDto {
@@ -13,6 +17,7 @@ public class NodeDto {
     private int value;
     private double x;
     private double y;
+    private String label;
 
     /** No-arg constructor for Jackson. */
     public NodeDto() {
@@ -23,6 +28,7 @@ public class NodeDto {
         this.value = value;
         this.x = x;
         this.y = y;
+        this.label = null;
     }
 
     public int getId() {
@@ -55,5 +61,13 @@ public class NodeDto {
 
     public void setY(double y) {
         this.y = y;
+    }
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
     }
 }
