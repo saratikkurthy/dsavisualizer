@@ -33,6 +33,10 @@ import java.util.Map;
  * segmenttree/query, segmenttree/update, unionfind/union,
  * string/kmp and backtracking/nqueens).</p>
  *
+ * <p>Updated for Phase 15 (2026-11-19): the endpoint list now covers
+ * all 59 POST trace endpoints (Phase 15's sort/bucket, dp/lis,
+ * dp/mcm, string/rabinkarp and trie/delete).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -56,6 +60,7 @@ public class HomeController {
                         "POST /api/sort/radix",
                         "POST /api/sort/heapsort",
                         "POST /api/sort/shell",
+                        "POST /api/sort/bucket",
                         "POST /api/search/linear",
                         "POST /api/search/binary",
                         "POST /api/stack/push",
@@ -87,6 +92,8 @@ public class HomeController {
                         "POST /api/dp/coinchange",
                         "POST /api/dp/editdistance",
                         "POST /api/dp/lps",
+                        "POST /api/dp/lis",
+                        "POST /api/dp/mcm",
                         "POST /api/avl/insert",
                         "POST /api/avl/search",
                         "POST /api/avl/delete",
@@ -95,11 +102,13 @@ public class HomeController {
                         "POST /api/rbtree/delete",
                         "POST /api/trie/insert",
                         "POST /api/trie/search",
+                        "POST /api/trie/delete",
                         "POST /api/segmenttree/build",
                         "POST /api/segmenttree/query",
                         "POST /api/segmenttree/update",
                         "POST /api/unionfind/union",
                         "POST /api/string/kmp",
+                        "POST /api/string/rabinkarp",
                         "POST /api/backtracking/nqueens"
                 )
         );

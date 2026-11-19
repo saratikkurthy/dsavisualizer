@@ -6,6 +6,7 @@ import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BacktrackingService;
 import com.sarat.dsavisualizer.service.BstService;
+import com.sarat.dsavisualizer.service.BucketSortService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
 import com.sarat.dsavisualizer.service.GraphService;
@@ -16,6 +17,7 @@ import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
+import com.sarat.dsavisualizer.service.RabinKarpService;
 import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.RedBlackService;
 import com.sarat.dsavisualizer.service.SearchService;
@@ -106,6 +108,13 @@ import java.util.Map;
  * text is longer than 40 characters, or the pattern is longer than
  * 12 characters or longer than the text. N-Queens 400 when value
  * is missing, below 1 or above 8.
+ * Validation rule (Phase 15): bucket sort 400 when values are
+ * missing/empty, longer than 10, or any value is outside 0..99.
+ * Rabin-Karp reuses the KMP validation. LIS 400 when values are
+ * missing/empty, longer than 10, or any |value| is over 999. MCM
+ * 400 when values are missing/empty, shorter than 3 or longer
+ * than 7, or any dimension is outside 1..99. Trie delete reuses
+ * the trie word validation (400 when the word is missing/empty).
  */
 @RestController
 @RequestMapping("/api")
@@ -134,6 +143,8 @@ public class VisualizationController {
     private final UnionFindService unionFindService;
     private final KmpService kmpService;
     private final BacktrackingService backtrackingService;
+    private final BucketSortService bucketSortService;
+    private final RabinKarpService rabinKarpService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -156,7 +167,9 @@ public class VisualizationController {
                                    SegmentTreeService segmentTreeService,
                                    UnionFindService unionFindService,
                                    KmpService kmpService,
-                                   BacktrackingService backtrackingService) {
+                                   BacktrackingService backtrackingService,
+                                   BucketSortService bucketSortService,
+                                   RabinKarpService rabinKarpService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -179,6 +192,8 @@ public class VisualizationController {
         this.unionFindService = unionFindService;
         this.kmpService = kmpService;
         this.backtrackingService = backtrackingService;
+        this.bucketSortService = bucketSortService;
+        this.rabinKarpService = rabinKarpService;
     }
 
     @GetMapping("/health")
@@ -286,6 +301,19 @@ public class VisualizationController {
         }
         List<Step> steps = shellSortService.shellSort(request.getValues());
         return ResponseEntity.ok(new TraceResponse("Shell Sort", steps));
+    }
+
+    // ---- Sorting (Phase 15) ----
+
+    @PostMapping("/sort/bucket")
+    public ResponseEntity<?> bucketSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBucketSort(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bucketSortService.bucketSort(
+                request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Bucket Sort", steps));
     }
 
     // ---- Search (Phase 1) ----
@@ -681,6 +709,32 @@ public class VisualizationController {
                         steps));
     }
 
+    // ---- Longest increasing subsequence / Matrix chain
+    // multiplication (Phase 15) ----
+
+    @PostMapping("/dp/lis")
+    public ResponseEntity<?> lis(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLis(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dpService.lis(request.getValues());
+        return ResponseEntity.ok(
+                new TraceResponse("Longest Increasing Subsequence",
+                        steps));
+    }
+
+    @PostMapping("/dp/mcm")
+    public ResponseEntity<?> mcm(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateMcm(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dpService.mcm(request.getValues());
+        return ResponseEntity.ok(
+                new TraceResponse("Matrix Chain Multiplication", steps));
+    }
+
     // ---- Segment tree (Phase 13) ----
 
     @PostMapping("/segmenttree/build")
@@ -750,6 +804,23 @@ public class VisualizationController {
         List<Step> steps = kmpService.kmp(request.getWords());
         return ResponseEntity.ok(
                 new TraceResponse("KMP String Matching", steps));
+    }
+
+    // ---- Rabin-Karp string matching (Phase 15) ----
+
+    @PostMapping("/string/rabinkarp")
+    public ResponseEntity<?> rabinKarp(@RequestBody TraceRequest request) {
+        // Same validation bounds as KMP: exactly two non-empty
+        // strings, text at most 40 characters, pattern at most 12
+        // and no longer than the text.
+        ResponseEntity<?> error = validateKmp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = rabinKarpService.rabinKarp(
+                request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("Rabin-Karp String Matching", steps));
     }
 
     // ---- N-Queens backtracking (Phase 13) ----
@@ -868,6 +939,19 @@ public class VisualizationController {
         List<Step> steps = trieService.search(
                 request.getWords(), request.getWord());
         return ResponseEntity.ok(new TraceResponse("Trie Search", steps));
+    }
+
+    // ---- Trie delete (Phase 15) ----
+
+    @PostMapping("/trie/delete")
+    public ResponseEntity<?> trieDelete(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateWord(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = trieService.delete(
+                request.getWords(), request.getWord());
+        return ResponseEntity.ok(new TraceResponse("Trie Delete", steps));
     }
 
     // ---- Validation helpers ----
@@ -1576,6 +1660,84 @@ public class VisualizationController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", algorithm
                             + " needs values with max <= " + maxAllowed));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 10, or any
+     * value is outside 0..99 (bucket index = value / 10 must stay
+     * drawable). Null means "no error".
+     */
+    private ResponseEntity<?> validateBucketSort(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 10) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bucket sort needs at most 10 values"));
+        }
+        for (int v : request.getValues()) {
+            if (v < 0 || v > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "bucket sort needs values between 0 "
+                                        + "and 99"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 10, or any
+     * |value| is over 999 (the dp array must stay drawable).
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateLis(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 10) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "LIS needs at most 10 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 999) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "LIS needs |values| <= 999"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values (the dimensions) are missing/empty, shorter
+     * than 3 or longer than 7, or any dimension is outside 1..99
+     * (the cost table must stay drawable). Null means "no error".
+     */
+    private ResponseEntity<?> validateMcm(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() < 3
+                || request.getValues().size() > 7) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "matrix chain needs 3 to 7 dimensions"));
+        }
+        for (int v : request.getValues()) {
+            if (v < 1 || v > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "dimensions must be between 1 and 99"));
+            }
         }
         return null;
     }
