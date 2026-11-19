@@ -5,10 +5,12 @@ import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BacktrackingService;
+import com.sarat.dsavisualizer.service.BoyerMooreService;
 import com.sarat.dsavisualizer.service.BstService;
 import com.sarat.dsavisualizer.service.BucketSortService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
+import com.sarat.dsavisualizer.service.FenwickTreeService;
 import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
@@ -17,6 +19,7 @@ import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
+import com.sarat.dsavisualizer.service.QuickSelectService;
 import com.sarat.dsavisualizer.service.RabinKarpService;
 import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.RedBlackService;
@@ -27,6 +30,7 @@ import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.StackService;
 import com.sarat.dsavisualizer.service.TrieService;
 import com.sarat.dsavisualizer.service.UnionFindService;
+import com.sarat.dsavisualizer.service.ZAlgorithmService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -115,6 +119,14 @@ import java.util.Map;
  * 400 when values are missing/empty, shorter than 3 or longer
  * than 7, or any dimension is outside 1..99. Trie delete reuses
  * the trie word validation (400 when the word is missing/empty).
+ * Validation rule (Phase 16): Boyer-Moore and Z-algorithm reuse
+ * the KMP validation. Fenwick 400 when values are missing/empty,
+ * longer than 8, or any |value| is over 99; prefix/update also
+ * 400 when the index is missing or outside 1..n (Fenwick indices
+ * are 1-based); update also 400 when the delta (value) is missing,
+ * outside -99..99, or 0. QuickSelect 400 when values are
+ * missing/empty, shorter than 2 or longer than 10, any |value| is
+ * over 999, or k (value) is missing or outside 1..n.
  */
 @RestController
 @RequestMapping("/api")
@@ -145,6 +157,10 @@ public class VisualizationController {
     private final BacktrackingService backtrackingService;
     private final BucketSortService bucketSortService;
     private final RabinKarpService rabinKarpService;
+    private final BoyerMooreService boyerMooreService;
+    private final ZAlgorithmService zAlgorithmService;
+    private final FenwickTreeService fenwickTreeService;
+    private final QuickSelectService quickSelectService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -169,7 +185,11 @@ public class VisualizationController {
                                    KmpService kmpService,
                                    BacktrackingService backtrackingService,
                                    BucketSortService bucketSortService,
-                                   RabinKarpService rabinKarpService) {
+                                   RabinKarpService rabinKarpService,
+                                   BoyerMooreService boyerMooreService,
+                                   ZAlgorithmService zAlgorithmService,
+                                   FenwickTreeService fenwickTreeService,
+                                   QuickSelectService quickSelectService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -194,6 +214,10 @@ public class VisualizationController {
         this.backtrackingService = backtrackingService;
         this.bucketSortService = bucketSortService;
         this.rabinKarpService = rabinKarpService;
+        this.boyerMooreService = boyerMooreService;
+        this.zAlgorithmService = zAlgorithmService;
+        this.fenwickTreeService = fenwickTreeService;
+        this.quickSelectService = quickSelectService;
     }
 
     @GetMapping("/health")
@@ -314,6 +338,19 @@ public class VisualizationController {
         List<Step> steps = bucketSortService.bucketSort(
                 request.getValues());
         return ResponseEntity.ok(new TraceResponse("Bucket Sort", steps));
+    }
+
+    // ---- Sorting (Phase 16) ----
+
+    @PostMapping("/sort/quickselect")
+    public ResponseEntity<?> quickSelect(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateQuickSelect(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = quickSelectService.quickSelect(
+                request.getValues(), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("QuickSelect", steps));
     }
 
     // ---- Search (Phase 1) ----
@@ -778,6 +815,48 @@ public class VisualizationController {
                 new TraceResponse("Segment Tree Update", steps));
     }
 
+    // ---- Fenwick tree (Phase 16) ----
+
+    @PostMapping("/fenwick/build")
+    public ResponseEntity<?> fenwickBuild(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateFenwick(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = fenwickTreeService.build(
+                request.getValues());
+        return ResponseEntity.ok(
+                new TraceResponse("Fenwick Tree Build", steps));
+    }
+
+    @PostMapping("/fenwick/prefix")
+    public ResponseEntity<?> fenwickPrefix(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateFenwickIndex(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = fenwickTreeService.prefix(
+                request.getValues(), request.getIndex());
+        return ResponseEntity.ok(
+                new TraceResponse("Fenwick Tree Prefix Sum", steps));
+    }
+
+    @PostMapping("/fenwick/update")
+    public ResponseEntity<?> fenwickUpdate(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateFenwickDelta(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = fenwickTreeService.update(
+                request.getValues(), request.getIndex(),
+                request.getValue());
+        return ResponseEntity.ok(
+                new TraceResponse("Fenwick Tree Update", steps));
+    }
+
     // ---- Union-Find (Phase 13) ----
 
     @PostMapping("/unionfind/union")
@@ -821,6 +900,36 @@ public class VisualizationController {
                 request.getWords());
         return ResponseEntity.ok(
                 new TraceResponse("Rabin-Karp String Matching", steps));
+    }
+
+    // ---- Boyer-Moore / Z-algorithm string matching (Phase 16) ----
+
+    @PostMapping("/string/boyermoore")
+    public ResponseEntity<?> boyerMoore(@RequestBody TraceRequest request) {
+        // Same validation bounds as KMP: exactly two non-empty
+        // strings, text at most 40 characters, pattern at most 12
+        // and no longer than the text.
+        ResponseEntity<?> error = validateKmp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = boyerMooreService.boyerMoore(
+                request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("Boyer-Moore String Matching", steps));
+    }
+
+    @PostMapping("/string/zalgorithm")
+    public ResponseEntity<?> zAlgorithm(@RequestBody TraceRequest request) {
+        // Same validation bounds as KMP.
+        ResponseEntity<?> error = validateKmp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = zAlgorithmService.zAlgorithm(
+                request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("Z-Algorithm String Matching", steps));
     }
 
     // ---- N-Queens backtracking (Phase 13) ----
@@ -1738,6 +1847,122 @@ public class VisualizationController {
                         .body(Map.of("error",
                                 "dimensions must be between 1 and 99"));
             }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 8, or any
+     * |value| is over 99 (the BIT strip must stay drawable).
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateFenwick(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "fenwick tree needs at most 8 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "fenwick tree needs |values| <= 99"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the Fenwick values are invalid, or index is
+     * missing or outside 1..n (Fenwick indices are 1-based).
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateFenwickIndex(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateFenwick(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getIndex() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "index must not be null"));
+        }
+        int index = request.getIndex();
+        int n = request.getValues().size();
+        if (index < 1 || index > n) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "index must be between 1 and " + n));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the Fenwick values/index are invalid, or the delta
+     * (value) is missing, outside -99..99, or 0. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateFenwickDelta(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateFenwickIndex(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "delta must not be null"));
+        }
+        int delta = request.getValue();
+        if (delta == 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Delta must not be 0."));
+        }
+        if (delta < -99 || delta > 99) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "delta must be between -99 and 99"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, shorter than 2 or longer
+     * than 10, any |value| is over 999, or k (value) is missing
+     * or outside 1..n. Null means "no error".
+     */
+    private ResponseEntity<?> validateQuickSelect(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() < 2
+                || request.getValues().size() > 10) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "quickselect needs 2 to 10 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 999) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "quickselect needs |values| <= 999"));
+            }
+        }
+        if (request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "k must not be null"));
+        }
+        int k = request.getValue();
+        int n = request.getValues().size();
+        if (k < 1 || k > n) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "k must be between 1 and " + n));
         }
         return null;
     }
