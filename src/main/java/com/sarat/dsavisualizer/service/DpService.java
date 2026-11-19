@@ -11,7 +11,8 @@ import java.util.List;
  * Dynamic-programming problems beyond 0/1 Knapsack
  * (KnapsackService): longest common subsequence, minimum coin
  * change (Phase 11), edit distance and longest palindromic
- * subsequence (Phase 12). All reuse the Step fields the knapsack
+ * subsequence (Phase 12), longest increasing subsequence and
+ * matrix chain multiplication (Phase 15). All reuse the Step fields the knapsack
  * already introduced — {@code table} for the DP tables,
  * {@code data} for the coin-change array — so no new Step field
  * is needed.
@@ -46,6 +47,25 @@ import java.util.List;
  * move in the direction of the smallest of dp[i-1][j] (delete),
  * dp[i][j-1] (insert), dp[i-1][j-1] (substitute), breaking ties
  * in that order — delete first, then insert, then substitute.
+ *
+ * LIS (Phase 15): dp[i] = 1 + max(dp[j]) over j &lt; i with
+ * a[j] &lt; a[i]; the update is only on strict &gt; (the first j
+ * wins ties). The trace is one step per i with the dp array so
+ * far (null = not yet computed, knapsack convention); the final
+ * Step traces back from the LAST index with the max dp, following
+ * {@code prev} links. With that rule [10, 9, 2, 5, 3, 7, 101, 18]
+ * reconstructs to [2, 5, 7, 18] — not [2, 3, 7, 18], which is
+ * also length 4 but is not what this rule builds.
+ *
+ * MCM (Phase 15): the table is (n+1)x(n+1), 1-based (row 0 and
+ * column 0 are unused nulls); the diagonal is 0 and uncomputed
+ * cells are null. Cells are computed by increasing chain length
+ * L = 2..n, one step per chain length — the step's message lists
+ * every cell computed at that length with its split k, and
+ * {@code highlight} is [i, j] of the last cell computed at that
+ * length. The split table records the argmin (first k wins
+ * ties); the final Step builds the parenthesization from it by
+ * the usual recursion, matrices named A1..An in order.
  *
  * LPS: the table has rows 0..n-1 and columns 0..n-1;
  * dp[i][j] is the LPS length of s[i..j]; cells with i &gt; j are
@@ -428,6 +448,174 @@ public class DpService {
                         + lpsText + ".",
                 LINE_FINAL));
         return steps;
+    }
+
+    /**
+     * Longest increasing subsequence of {@code values} (Phase 15).
+     * dp[i] = 1 + max(dp[j]) over j &lt; i with a[j] &lt; a[i]; the
+     * update is only on strict &gt;, so the first j wins ties. The
+     * controller validates the input (non-empty, at most 10 values,
+     * each |value| &lt;= 999); this method guards against bad input
+     * anyway with a single "empty" Step.
+     */
+    public List<Step> lis(List<Integer> values) {
+        List<Step> steps = new ArrayList<>();
+        if (values == null || values.isEmpty()) {
+            steps.add(coinStep(List.of(), List.of(),
+                    "No values.", LINE_FINAL));
+            return steps;
+        }
+        int n = values.size();
+        // dp[i] = LIS length ending at i (null = not yet computed);
+        // prev[i] = the j that achieved it, -1 when there is none.
+        List<Integer> dp = new ArrayList<>();
+        List<Integer> prev = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            dp.add(null);
+            prev.add(-1);
+        }
+        for (int i = 0; i < n; i++) {
+            int best = 1;
+            int bestPrev = -1;
+            for (int j = 0; j < i; j++) {
+                // Strict ">" so the first j wins ties.
+                if (values.get(j) < values.get(i)
+                        && dp.get(j) + 1 > best) {
+                    best = dp.get(j) + 1;
+                    bestPrev = j;
+                }
+            }
+            dp.set(i, best);
+            prev.set(i, bestPrev);
+            String message;
+            int line;
+            if (bestPrev == -1) {
+                line = LINE_COMPARE;
+                message = "dp[" + i + "] = 1 (no smaller element "
+                        + "before it).";
+            } else {
+                line = LINE_TAKE;
+                message = "dp[" + i + "] = " + best
+                        + " (best previous: " + values.get(bestPrev)
+                        + " at index " + bestPrev + ").";
+            }
+            steps.add(coinStep(dp, List.of(i), message, line));
+        }
+        // Trace back from the LAST index with the max dp ("&gt;=" so
+        // the last max index wins), following prev links.
+        int maxLen = 0;
+        int maxIdx = 0;
+        for (int i = 0; i < n; i++) {
+            if (dp.get(i) >= maxLen) {
+                maxLen = dp.get(i);
+                maxIdx = i;
+            }
+        }
+        List<Integer> lis = new ArrayList<>();
+        int cur = maxIdx;
+        while (cur != -1) {
+            lis.add(values.get(cur));
+            cur = prev.get(cur);
+        }
+        Collections.reverse(lis);
+        steps.add(coinStep(dp, List.of(maxIdx),
+                "Longest increasing subsequence has length " + maxLen
+                        + ": [" + joinInts(lis) + "].",
+                LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * Matrix chain multiplication (Phase 15): minimum scalar
+     * multiplications for the chain whose dimensions are
+     * {@code values} (n+1 numbers for n matrices). Standard O(n^3)
+     * DP: m[i][j] = min over k of m[i][k] + m[k+1][j] +
+     * p[i-1]*p[k]*p[j]; the split table records the argmin (first
+     * k wins ties). The controller validates the input (3..7
+     * dimensions, each 1..99); this method guards against bad
+     * input anyway with a single "empty" Step.
+     */
+    public List<Step> mcm(List<Integer> values) {
+        List<Step> steps = new ArrayList<>();
+        if (values == null || values.size() < 2) {
+            steps.add(dpStep(List.of(), List.of(),
+                    "At least two dimensions are needed.", LINE_FINAL));
+            return steps;
+        }
+        int n = values.size() - 1; // number of matrices
+        // m[i][j] and s[i][j] for 1 <= i <= j <= n; the table is
+        // (n+1)x(n+1) and 1-based, so row 0 and column 0 stay
+        // null (unused) and the diagonal is pre-filled with 0.
+        List<List<Integer>> table = new ArrayList<>();
+        List<List<Integer>> split = new ArrayList<>();
+        for (int i = 0; i <= n; i++) {
+            List<Integer> mRow = new ArrayList<>();
+            List<Integer> sRow = new ArrayList<>();
+            for (int j = 0; j <= n; j++) {
+                mRow.add(i == j && i > 0 ? 0 : null);
+                sRow.add(null);
+            }
+            table.add(mRow);
+            split.add(sRow);
+        }
+        // One step per chain length L = 2..n.
+        for (int len = 2; len <= n; len++) {
+            StringBuilder message = new StringBuilder(
+                    "Chain length " + len + ": ");
+            int lastI = -1;
+            int lastJ = -1;
+            for (int i = 1; i <= n - len + 1; i++) {
+                int j = i + len - 1;
+                int best = Integer.MAX_VALUE;
+                int bestK = i;
+                for (int k = i; k < j; k++) {
+                    int cost = table.get(i).get(k)
+                            + table.get(k + 1).get(j)
+                            + values.get(i - 1) * values.get(k)
+                            * values.get(j);
+                    // Strict "<" so the first k wins ties.
+                    if (cost < best) {
+                        best = cost;
+                        bestK = k;
+                    }
+                }
+                table.get(i).set(j, best);
+                split.get(i).set(j, bestK);
+                if (i > 1) {
+                    message.append(", ");
+                }
+                message.append("m[").append(i).append("][").append(j)
+                        .append("] = ").append(best)
+                        .append(" (k = ").append(bestK).append(")");
+                lastI = i;
+                lastJ = j;
+            }
+            message.append(".");
+            steps.add(dpStep(table, List.of(lastI, lastJ),
+                    message.toString(), LINE_COMPARE));
+        }
+        // Final step: the minimum cost and the parenthesization
+        // built from the split table.
+        String parens = parenthesize(1, n, split);
+        steps.add(dpStep(table, List.of(1, n),
+                "Minimum cost " + table.get(1).get(n) + ". " + parens
+                        + ".",
+                LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * The optimal parenthesization of matrices i..j from the split
+     * table: "(left)(right)" split at s[i][j], "Ai" for one matrix.
+     */
+    private String parenthesize(int i, int j,
+                                List<List<Integer>> split) {
+        if (i == j) {
+            return "A" + i;
+        }
+        int k = split.get(i).get(j);
+        return "(" + parenthesize(i, k, split)
+                + parenthesize(k + 1, j, split) + ")";
     }
 
     /**

@@ -12,8 +12,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Trie (prefix tree) insert/search that records each character step
- * as a Step.
+ * Trie (prefix tree) insert/search/delete that records each
+ * character step as a Step.
  *
  * Words are lowercased; empty words are ignored. Node ids are
  * 0-based in creation order (the root is id 0). Layout (computed
@@ -24,11 +24,19 @@ import java.util.TreeMap;
  * word ends here). Trie nodes carry {@code label} = the character
  * ("" for the root) and {@code value} = 0; the frontend shows the
  * label when present. Line numbers: follow/create = 2, final = 0.
+ *
+ * Delete (Phase 15): walk down one step per node; if the word is
+ * absent the trace ends with "Word 'x' not found." and nothing
+ * changes. If present, unmark the end-of-word, then prune
+ * bottom-up — a node is removed only when it has no children AND
+ * ends no word — one step per pruned node, then "Deleted 'x'."
+ * with the pruned trie.
  */
 @Service
 public class TrieService {
 
     private static final int LINE_COMPARE = 2;
+    private static final int LINE_UNMARK = 3;
     private static final int LINE_FINAL = 0;
 
     /** Internal trie node. Children are a TreeMap for deterministic order. */
@@ -164,6 +172,72 @@ public class TrieService {
                 ? "Found '" + word + "'!"
                 : "'" + word + "' is a prefix but not a word.";
         steps.add(trieStep(trie, List.of(node.id), message, LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * Delete a word. One Step per character followed on the way
+     * down; if the word is absent (the path breaks, or the path
+     * exists but ends no word — e.g. deleting "car" when only
+     * "card" is left), the trace ends with "Word 'x' not found."
+     * and nothing changes. If present, one Step unmarks the
+     * end-of-word, then one Step per node pruned bottom-up (a node
+     * is removed only when it has no children AND ends no word —
+     * so deleting "car" keeps the 'r' node, because "card" still
+     * needs it), then a final Step "Deleted 'x'." with the
+     * pruned trie.
+     */
+    public List<Step> delete(List<String> words, String word) {
+        List<Step> steps = new ArrayList<>();
+        Trie trie = buildTrie(words);
+        String target = word == null ? "" : word.toLowerCase();
+        TrieNode node = trie.root;
+        List<TrieNode> path = new ArrayList<>();
+        path.add(node);
+        for (int i = 0; i < target.length(); i++) {
+            char ch = target.charAt(i);
+            TrieNode child = node.children.get(ch);
+            if (child == null) {
+                steps.add(trieStep(trie, List.of(node.id),
+                        "Word '" + target + "' not found.",
+                        LINE_FINAL));
+                return steps;
+            }
+            node = child;
+            path.add(node);
+            steps.add(trieStep(trie, List.of(node.id),
+                    "Follow '" + ch + "'.",
+                    LINE_COMPARE));
+        }
+        if (!node.isWordEnd) {
+            steps.add(trieStep(trie, List.of(node.id),
+                    "Word '" + target + "' not found.",
+                    LINE_FINAL));
+            return steps;
+        }
+        // Unmark the end-of-word.
+        node.isWordEnd = false;
+        steps.add(trieStep(trie, List.of(node.id),
+                "Unmark '" + target + "' as a word.",
+                LINE_UNMARK));
+        // Prune bottom-up: a node goes only when it has no
+        // children AND ends no word. The first node that fails
+        // either test stops the pruning.
+        for (int i = path.size() - 1; i >= 1; i--) {
+            TrieNode cur = path.get(i);
+            TrieNode parent = path.get(i - 1);
+            if (!cur.children.isEmpty() || cur.isWordEnd) {
+                break;
+            }
+            parent.children.remove(cur.ch);
+            trie.allNodes.remove(cur);
+            steps.add(trieStep(trie, List.of(parent.id),
+                    "Prune node '" + cur.ch + "' — no children, "
+                            + "ends no word.",
+                    LINE_UNMARK));
+        }
+        steps.add(trieStep(trie, List.of(node.id),
+                "Deleted '" + target + "'.", LINE_FINAL));
         return steps;
     }
 
