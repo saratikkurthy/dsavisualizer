@@ -1,10 +1,29 @@
+# Backend CI — for the dsavisualizer repo (backend only).
+# Place this file at .github/workflows/ci.yml in that repo.
+#
+# The backend files live at the repo ROOT (pom.xml, src/,
+# Dockerfile), so there is no `backend/` folder and no
+# working-directory here.
+#
+# The old monorepo workflow failed for two reasons:
+# 1. It ran `mvn verify` inside a `backend/` directory that does
+#    not exist in this repo (pom.xml is at the root), so the
+#    "Build and test" step failed.
+# 2. It also ran a frontend job for a `frontend/` directory that
+#    is not in this repo either.
+#
+# This workflow also triggers on `dev` and `stage`, not just
+# `main` — the repo's default branch is `dev`, so a workflow
+# that only triggers on `main` never runs on the branch Babu
+# actually pushes to.
+
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev, stage]
   pull_request:
-    branches: [main]
+    branches: [main, dev, stage]
 
 jobs:
   backend:
@@ -19,32 +38,9 @@ jobs:
           distribution: temurin
           cache: maven
       - name: Build and test
-        working-directory: backend
         run: mvn -B -q verify
 
-  frontend:
-    name: Frontend (React + Vite)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install and build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-
-  # Deployment is handled by the platforms, not by this workflow:
-  #  - Vercel: connect the repo at vercel.com (Root Directory: frontend).
-  #    It deploys automatically on every push to main.
-  #  - Render: connect the repo (or use render.yaml Blueprint) with
-  #    Root Directory: backend. It rebuilds on every push to main.
-  # This workflow is the gate: if build or tests fail here, the push
-  # is red and the platforms still deploy only the last green commit
-  # when using their GitHub integration with "auto-deploy" off, or
-  # you can wire a deploy step here later if you prefer.
+  # Deployment is handled by Render, not by this workflow:
+  # connect the repo at render.com (Root Directory: blank, Language:
+  # Docker). It rebuilds on every push. This workflow is the gate:
+  # if the build or tests fail here, the push is red.
