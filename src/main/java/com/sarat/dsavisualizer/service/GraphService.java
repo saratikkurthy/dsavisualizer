@@ -21,16 +21,21 @@ import java.util.TreeSet;
 
 /**
  * Undirected graph BFS/DFS/Dijkstra/Prim's/Kruskal's, Bellman-Ford
- * (negative weights allowed) and topological sort (directed,
- * Kahn's algorithm) that record each visit/discovery as a Step.
+ * (negative weights allowed), topological sort (directed, Kahn's
+ * algorithm), A* and weighted A* pathfinding on a grid, and
+ * Floyd-Warshall all-pairs shortest paths — each recording every
+ * visit/discovery as a Step.
  *
  * Steps carry the full graph ({@code nodes}/{@code edges}, circular
  * layout), {@code data} is empty for BFS/DFS and Kruskal's, the
  * distances array for Dijkstra and Bellman-Ford, the key array for
  * Prim's, and the in-degree array for topological sort,
  * {@code highlight} holds node ids being visited/discovered/
- * settled, {@code sorted} holds visited/settled node ids. Line
- * numbers: visit/discover/settle = 2, relax/swap = 3, final = 0.
+ * settled, {@code sorted} holds visited/settled node ids. A* and
+ * weighted A* carry the grid in {@code table} (state codes);
+ * Floyd-Warshall carries the distance matrix in {@code table}.
+ * Line numbers: visit/discover/settle = 2, relax/swap = 3,
+ * final = 0.
  *
  * Edges may be 2-element {@code [from, to]} (weight defaults to 1)
  * or 3-element {@code [from, to, weight]} (Phase 7, Dijkstra).
@@ -791,6 +796,292 @@ public class GraphService {
             state.get(current[0]).set(current[1], 3);
         }
         steps.add(aStarStep(state, List.of(), "No path found.",
+                LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * Weighted A* pathfinding on a cost grid (Phase 12). Same
+     * shape as {@link #aStar}: 4-directional movement, Manhattan
+     * distance heuristic (x 1, the minimum cost per step — so it
+     * stays admissible), one Step per cell popped (line 2), then
+     * a final Step with the path (line 0) — or "No path found."
+     * The difference is the cost: {@code costGrid} holds 0 = wall
+     * (impassable) or 1-9 = the cost to ENTER that cell, and the
+     * g score is the total entry cost so far (entering the start
+     * cell costs 0 — it is already occupied). {@code table} uses
+     * the same state codes as A* (0 free, 1 wall, 2 open,
+     * 3 closed, 4 current, 5 path); {@code highlight} is
+     * [row, col]. Tie-breaking is the same as A*: lowest f, then
+     * lowest h, then lowest row, then lowest column.
+     */
+    public List<Step> aStarWeighted(List<List<Integer>> costGrid,
+                                    List<Integer> startCell,
+                                    List<Integer> goalCell) {
+        List<Step> steps = new ArrayList<>();
+        if (costGrid == null || costGrid.isEmpty() || startCell == null
+                || startCell.size() != 2 || goalCell == null
+                || goalCell.size() != 2) {
+            steps.add(aStarStep(List.of(), List.of(),
+                    "Invalid cost grid.", LINE_FINAL));
+            return steps;
+        }
+        int rows = costGrid.size();
+        int cols = costGrid.get(0).size();
+        // State table: 0 = free, 1 = wall (a cost-0 cell).
+        // Cost table: the entry cost of each cell (0 for walls).
+        List<List<Integer>> state = new ArrayList<>();
+        List<List<Integer>> cost = new ArrayList<>();
+        for (List<Integer> row : costGrid) {
+            List<Integer> stateRow = new ArrayList<>();
+            List<Integer> costRow = new ArrayList<>();
+            for (Integer cell : row) {
+                int c = cell == null ? 0 : cell;
+                stateRow.add(c == 0 ? 1 : 0);
+                costRow.add(c);
+            }
+            state.add(stateRow);
+            cost.add(costRow);
+        }
+        int sr = startCell.get(0);
+        int sc = startCell.get(1);
+        int gr = goalCell.get(0);
+        int gc = goalCell.get(1);
+        if (sr < 0 || sr >= rows || sc < 0 || sc >= cols
+                || gr < 0 || gr >= rows || gc < 0 || gc >= cols
+                || state.get(sr).get(sc) == 1
+                || state.get(gr).get(gc) == 1) {
+            steps.add(aStarStep(state, List.of(),
+                    "Invalid start or goal.", LINE_FINAL));
+            return steps;
+        }
+        int[][] gScore = new int[rows][cols];
+        int[][] cameFromR = new int[rows][cols];
+        int[][] cameFromC = new int[rows][cols];
+        boolean[][] closed = new boolean[rows][cols];
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                gScore[r][c] = Integer.MAX_VALUE;
+                cameFromR[r][c] = -1;
+                cameFromC[r][c] = -1;
+            }
+        }
+        gScore[sr][sc] = 0;
+        PriorityQueue<AStarCell> open = new PriorityQueue<>(
+                (a, b) -> a.f() != b.f() ? Integer.compare(a.f(), b.f())
+                        : a.h != b.h ? Integer.compare(a.h, b.h)
+                        : a.r != b.r ? Integer.compare(a.r, b.r)
+                        : Integer.compare(a.c, b.c));
+        open.add(new AStarCell(sr, sc, 0, manhattan(sr, sc, gr, gc)));
+        state.get(sr).set(sc, 2);
+        int[] current = null; // [row, col] of the last popped cell
+        // 4-directional neighbours: up, right, down, left.
+        int[][] dirs = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+        while (!open.isEmpty()) {
+            AStarCell cell = open.poll();
+            if (closed[cell.r][cell.c]) {
+                continue; // stale entry (a cheaper path was found)
+            }
+            // The previously current cell is now closed.
+            if (current != null) {
+                state.get(current[0]).set(current[1], 3);
+            }
+            closed[cell.r][cell.c] = true;
+            current = new int[]{cell.r, cell.c};
+            state.get(cell.r).set(cell.c, 4);
+            if (cell.r == gr && cell.c == gc) {
+                // Reconstruct the path from the goal back to the start.
+                List<int[]> path = new ArrayList<>();
+                int pr = gr;
+                int pc = gc;
+                while (pr != -1) {
+                    path.add(new int[]{pr, pc});
+                    int nr = cameFromR[pr][pc];
+                    int nc = cameFromC[pr][pc];
+                    pr = nr;
+                    pc = nc;
+                }
+                Collections.reverse(path);
+                for (int[] p : path) {
+                    state.get(p[0]).set(p[1], 5);
+                }
+                StringBuilder pathText = new StringBuilder();
+                for (int k = 0; k < path.size(); k++) {
+                    if (k > 0) {
+                        pathText.append(" -> ");
+                    }
+                    pathText.append("(").append(path.get(k)[0])
+                            .append(",").append(path.get(k)[1]).append(")");
+                }
+                steps.add(aStarStep(state, List.of(gr, gc),
+                        "Path found! Cheapest cost " + cell.g
+                                + ". Path: " + pathText + ".",
+                        LINE_FINAL));
+                return steps;
+            }
+            steps.add(aStarStep(state, List.of(cell.r, cell.c),
+                    "Visit (" + cell.r + "," + cell.c + "). g = "
+                            + cell.g + ". f = g + h = " + cell.g + " + "
+                            + cell.h + " = " + cell.f() + ".",
+                    LINE_COMPARE));
+            for (int[] dir : dirs) {
+                int nr = cell.r + dir[0];
+                int nc = cell.c + dir[1];
+                if (nr < 0 || nr >= rows || nc < 0 || nc >= cols
+                        || state.get(nr).get(nc) == 1 || closed[nr][nc]) {
+                    continue;
+                }
+                // The cost to ENTER the neighbour cell.
+                int tentative = gScore[cell.r][cell.c]
+                        + cost.get(nr).get(nc);
+                if (tentative < gScore[nr][nc]) {
+                    gScore[nr][nc] = tentative;
+                    cameFromR[nr][nc] = cell.r;
+                    cameFromC[nr][nc] = cell.c;
+                    open.add(new AStarCell(nr, nc, tentative,
+                            manhattan(nr, nc, gr, gc)));
+                    if (state.get(nr).get(nc) == 0) {
+                        state.get(nr).set(nc, 2);
+                    }
+                }
+            }
+        }
+        // The open set emptied without reaching the goal.
+        if (current != null) {
+            state.get(current[0]).set(current[1], 3);
+        }
+        steps.add(aStarStep(state, List.of(), "No path found.",
+                LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * Floyd-Warshall all-pairs shortest paths (Phase 12). The
+     * nodes are 0..n-1 where n = max node id + 1. {@code table}
+     * is the distance matrix (rows/cols = nodes; JSON null =
+     * infinity / no path yet; the diagonal is 0). One Step per
+     * intermediate node k (line 2, {@code highlight} = [k, k]),
+     * then a final Step with the complete matrix (line 0) — or a
+     * negative-cycle message when any d[i][i] &lt; 0. Negative
+     * weights are allowed (unlike Dijkstra). A self-loop edge
+     * [i, i, w] is kept (unlike Bellman-Ford, which skips them):
+     * a negative self-loop is a negative cycle, so d[i][i] =
+     * min(0, w) is the correct initial value. Duplicate edges
+     * keep the minimum weight. The matrix snapshot in each Step
+     * is a deep copy, so later iterations never mutate earlier
+     * snapshots.
+     */
+    public List<Step> floydWarshall(List<List<Integer>> graphEdges) {
+        List<Step> steps = new ArrayList<>();
+        // Valid edges in input order: [from, to, weight].
+        List<int[]> edges = new ArrayList<>();
+        int maxId = -1;
+        if (graphEdges != null) {
+            for (List<Integer> pair : graphEdges) {
+                if (pair == null || (pair.size() != 2 && pair.size() != 3)) {
+                    continue;
+                }
+                Integer u = pair.get(0);
+                Integer v = pair.get(1);
+                if (u == null || v == null) {
+                    continue;
+                }
+                int w = pair.size() == 3 && pair.get(2) != null
+                        ? pair.get(2) : 1;
+                edges.add(new int[]{u, v, w});
+                maxId = Math.max(maxId, Math.max(u, v));
+            }
+        }
+        if (graphEdges == null || graphEdges.isEmpty() || edges.isEmpty()) {
+            steps.add(aStarStep(List.of(), List.of(),
+                    "Graph is empty.", LINE_FINAL));
+            return steps;
+        }
+        int n = maxId + 1;
+        // Distance matrix: null = infinity; the diagonal is 0.
+        List<List<Integer>> dist = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            List<Integer> row = new ArrayList<>();
+            for (int j = 0; j < n; j++) {
+                row.add(i == j ? 0 : null);
+            }
+            dist.add(row);
+        }
+        for (int[] edge : edges) {
+            int u = edge[0];
+            int v = edge[1];
+            int w = edge[2];
+            // Undirected: the graph's edges are two-way everywhere
+            // else in the app (Dijkstra, BFS/DFS, Prim, Kruskal all
+            // build an undirected adjacency map), so FW does the
+            // same — set both directions. A negative edge is
+            // therefore a negative cycle on its own (travel it back
+            // and forth and the cost keeps dropping), and the
+            // diagonal check below catches that.
+            Integer old = dist.get(u).get(v);
+            if (old == null || w < old) {
+                dist.get(u).set(v, w);
+            }
+            Integer oldRev = dist.get(v).get(u);
+            if (oldRev == null || w < oldRev) {
+                dist.get(v).set(u, w);
+            }
+        }
+        for (int k = 0; k < n; k++) {
+            List<String> improved = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    Integer dik = dist.get(i).get(k);
+                    Integer dkj = dist.get(k).get(j);
+                    if (dik == null || dkj == null) {
+                        continue;
+                    }
+                    int via = dik + dkj;
+                    Integer old = dist.get(i).get(j);
+                    if (old == null || via < old) {
+                        dist.get(i).set(j, via);
+                        improved.add("d[" + i + "][" + j + "] improves to "
+                                + via);
+                    }
+                }
+            }
+            String message;
+            if (improved.isEmpty()) {
+                message = "k = " + k + ": no improvement.";
+            } else {
+                StringBuilder sb = new StringBuilder();
+                sb.append("k = ").append(k)
+                        .append(": routes through node ").append(k)
+                        .append(". ");
+                int shown = Math.min(improved.size(), 3);
+                for (int t = 0; t < shown; t++) {
+                    if (t > 0) {
+                        sb.append(", ");
+                    }
+                    sb.append(improved.get(t));
+                }
+                if (improved.size() > 3) {
+                    sb.append(" (and ").append(improved.size() - 3)
+                            .append(" more)");
+                }
+                sb.append(".");
+                message = sb.toString();
+            }
+            steps.add(aStarStep(dist, List.of(k, k), message,
+                    LINE_COMPARE));
+        }
+        boolean negativeCycle = false;
+        for (int i = 0; i < n; i++) {
+            if (dist.get(i).get(i) < 0) {
+                negativeCycle = true;
+                break;
+            }
+        }
+        steps.add(aStarStep(dist, List.of(),
+                negativeCycle
+                        ? "Negative cycle detected — distances are not "
+                                + "well-defined."
+                        : "All-pairs shortest paths computed.",
                 LINE_FINAL));
         return steps;
     }

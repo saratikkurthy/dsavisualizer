@@ -31,7 +31,10 @@ import java.util.List;
  * Search builds the tree silently (same insert logic, no steps),
  * then walks it like the BST search — one Step per node visited
  * (line 2), then a found / not-found final Step (line 0).
- * Line numbers: compare/visit = 2, mutation = 3, final = 0.
+ * Delete (Phase 12) builds the tree silently, searches for the
+ * key with compare Steps, then removes it (CLRS delete with the
+ * double-black fix-up) and ends with a final Step naming the new
+ * root. Line numbers: compare/visit = 2, mutation = 3, final = 0.
  */
 @Service
 public class RedBlackService {
@@ -119,6 +122,281 @@ public class RedBlackService {
                 snapshotNodes(root), snapshotEdges(root),
                 "Target " + target + " not found.", LINE_FINAL));
         return steps;
+    }
+
+    /**
+     * Delete a key. The tree is built by inserting all values
+     * first (silently), then the key is searched for with compare
+     * Steps (line 2). If it is not there, the trace ends with a
+     * single "not found" final Step (line 0). Otherwise the node
+     * is deleted (line 3), the double-black fix-up runs when the
+     * removed node was black (recolor / rotation Steps, line 3),
+     * and the trace ends with a final Step naming the new root
+     * (line 0). Handles a leaf, one child, and two children
+     * (successor replacement). Duplicates are skipped silently
+     * during the build, like insert.
+     */
+    public List<Step> delete(List<Integer> values, int value) {
+        List<Step> steps = new ArrayList<>();
+        Node[] rootRef = new Node[1];
+        int[] nextId = new int[]{0};
+        if (values == null || values.isEmpty()) {
+            steps.add(rbtStep(List.of(), List.of(), List.of(),
+                    "Tree is empty.", LINE_FINAL));
+            return steps;
+        }
+        for (int v : values) {
+            insertValue(rootRef, v, nextId, null);
+        }
+        Node root = rootRef[0];
+        // BST search for the key, one compare Step per node visited.
+        Node target = root;
+        while (target != null && target.value != value) {
+            String direction = value < target.value ? "left" : "right";
+            steps.add(rbtStep(List.of(target.id),
+                    snapshotNodes(root), snapshotEdges(root),
+                    "Compare " + value + " with " + target.value
+                            + " — go " + direction + ".",
+                    LINE_COMPARE));
+            target = value < target.value ? target.left : target.right;
+        }
+        if (target == null) {
+            steps.add(rbtStep(List.of(),
+                    snapshotNodes(root), snapshotEdges(root),
+                    "Key " + value + " not found in the tree.",
+                    LINE_FINAL));
+            return steps;
+        }
+        deleteNode(rootRef, target, steps);
+        Node newRoot = rootRef[0];
+        if (newRoot == null) {
+            steps.add(rbtStep(List.of(), List.of(), List.of(),
+                    "Deleted " + value + ". The tree is now empty.",
+                    LINE_FINAL));
+        } else {
+            steps.add(rbtStep(List.of(), snapshotNodes(newRoot),
+                    snapshotEdges(newRoot),
+                    "Deleted " + value + ". Root: " + newRoot.value
+                            + " (" + colorName(newRoot) + ").",
+                    LINE_FINAL));
+        }
+        return steps;
+    }
+
+    /**
+     * One CLRS delete (RB-DELETE). {@code z} is the node to remove.
+     * {@code y} is the node actually spliced out of the tree; when
+     * z has two children y is z's successor, which takes z's place
+     * and z's colour. {@code x} is the child that replaces y (it
+     * may be null — a null leaf); {@code xParent} and
+     * {@code xIsLeft} say where x sits, because a null x has no
+     * parent pointer of its own. When the spliced-out node was
+     * black, the double-black fix-up runs. The deletion Step is
+     * emitted once the pointers are fully re-linked, so its
+     * snapshot never misses a detached subtree.
+     */
+    private void deleteNode(Node[] rootRef, Node z, List<Step> steps) {
+        Node y = z;
+        boolean yOriginalRed = y.red;
+        Node x;
+        Node xParent;
+        boolean xIsLeft;
+        String message;
+        if (z.left == null) {
+            x = z.right;
+            xParent = z.parent;
+            xIsLeft = z.parent != null && z == z.parent.left;
+            transplant(rootRef, z, z.right);
+            message = "Delete " + z.value + " (" + colorName(z)
+                    + (z.right == null ? " leaf" : ", one child") + ").";
+        } else if (z.right == null) {
+            x = z.left;
+            xParent = z.parent;
+            xIsLeft = z.parent != null && z == z.parent.left;
+            transplant(rootRef, z, z.left);
+            message = "Delete " + z.value + " (" + colorName(z)
+                    + ", one child).";
+        } else {
+            // Two children: the successor is the minimum of the
+            // right subtree; it takes z's place and z's colour.
+            y = minimum(z.right);
+            yOriginalRed = y.red;
+            x = y.right;
+            if (y.parent == z) {
+                // y is z's right child: x stays y's right child.
+                xParent = y;
+                xIsLeft = false;
+            } else {
+                // x takes y's place as the left child of y's
+                // parent (y is the leftmost node, so it is a left
+                // child); then y takes z's right subtree.
+                xParent = y.parent;
+                xIsLeft = true;
+                transplant(rootRef, y, y.right);
+                y.right = z.right;
+                y.right.parent = y;
+            }
+            transplant(rootRef, z, y);
+            y.left = z.left;
+            y.left.parent = y;
+            y.red = z.red;
+            message = "Delete " + z.value
+                    + " — replace with its successor " + y.value + ".";
+        }
+        // Highlight the node that took z's place: the successor
+        // (two children), the child (one child), or the parent
+        // (a leaf) — z itself is gone from the snapshot, so
+        // highlighting it would highlight nothing.
+        List<Integer> highlight;
+        if (y != z) {
+            highlight = List.of(y.id);
+        } else if (x != null) {
+            highlight = List.of(x.id);
+        } else if (xParent != null) {
+            highlight = List.of(xParent.id);
+        } else {
+            highlight = List.of();
+        }
+        steps.add(rbtStep(highlight,
+                snapshotNodes(rootRef[0]), snapshotEdges(rootRef[0]),
+                message, LINE_SWAP));
+        if (!yOriginalRed) {
+            deleteFixup(rootRef, x, xParent, xIsLeft, steps);
+        }
+    }
+
+    /**
+     * CLRS delete fix-up. {@code x} is the double-black node (it
+     * may be null — a null leaf counts as black); {@code parent}
+     * is x's parent and {@code isLeft} says whether x is its left
+     * child, because a null x has no parent pointer. Cases (x a
+     * left child; the right-child side is the mirror image):
+     * case 1, the sibling is red — recolor and rotate at the
+     * parent, then recompute the sibling; case 2, the sibling is
+     * black with two black children — recolor the sibling red and
+     * move the double-black up to the parent; case 3, the sibling
+     * is black with a red left child and a black right child —
+     * recolor and rotate at the sibling, then fall through to
+     * case 4; case 4, the sibling is black with a red right
+     * child — the sibling takes the parent's colour, the parent
+     * and the sibling's right child go black, rotate at the
+     * parent, and the double-black is resolved. The root is
+     * forced black at the end. A rotation or recolor Step is
+     * emitted only when the pointers / colour actually change
+     * (the helpers skip no-ops), so the trace never shows a
+     * step that did nothing.
+     */
+    private void deleteFixup(Node[] rootRef, Node x, Node parent,
+                             boolean isLeft, List<Step> steps) {
+        Node current = x;
+        Node currentParent = parent;
+        boolean currentIsLeft = isLeft;
+        while (current != rootRef[0] && !isRed(current)) {
+            if (currentIsLeft) {
+                Node w = currentParent.right;
+                if (isRed(w)) {
+                    // Case 1: the sibling is red.
+                    recolor(w, false, rootRef, steps);
+                    recolor(currentParent, true, rootRef, steps);
+                    rotateLeft(rootRef, currentParent, steps);
+                    w = currentParent.right;
+                }
+                if (!isRed(w.left) && !isRed(w.right)) {
+                    // Case 2: both of the sibling's children black.
+                    recolor(w, true, rootRef, steps);
+                    current = currentParent;
+                    currentParent = current.parent;
+                    currentIsLeft = currentParent != null
+                            && current == currentParent.left;
+                } else {
+                    if (!isRed(w.right)) {
+                        // Case 3: the sibling's right child is
+                        // black, so the left child must be red.
+                        recolor(w.left, false, rootRef, steps);
+                        recolor(w, true, rootRef, steps);
+                        rotateRight(rootRef, w, steps);
+                        w = currentParent.right;
+                    }
+                    // Case 4: the sibling's right child is red.
+                    recolor(w, currentParent.red, rootRef, steps);
+                    recolor(currentParent, false, rootRef, steps);
+                    recolor(w.right, false, rootRef, steps);
+                    rotateLeft(rootRef, currentParent, steps);
+                    current = rootRef[0];
+                }
+            } else {
+                Node w = currentParent.left;
+                if (isRed(w)) {
+                    // Case 1 (mirror): the sibling is red.
+                    recolor(w, false, rootRef, steps);
+                    recolor(currentParent, true, rootRef, steps);
+                    rotateRight(rootRef, currentParent, steps);
+                    w = currentParent.left;
+                }
+                if (!isRed(w.right) && !isRed(w.left)) {
+                    // Case 2 (mirror): both children black.
+                    recolor(w, true, rootRef, steps);
+                    current = currentParent;
+                    currentParent = current.parent;
+                    currentIsLeft = currentParent != null
+                            && current == currentParent.left;
+                } else {
+                    if (!isRed(w.left)) {
+                        // Case 3 (mirror): the sibling's left
+                        // child is black, so the right must be red.
+                        recolor(w.right, false, rootRef, steps);
+                        recolor(w, true, rootRef, steps);
+                        rotateLeft(rootRef, w, steps);
+                        w = currentParent.left;
+                    }
+                    // Case 4 (mirror): the sibling's left child
+                    // is red.
+                    recolor(w, currentParent.red, rootRef, steps);
+                    recolor(currentParent, false, rootRef, steps);
+                    recolor(w.left, false, rootRef, steps);
+                    rotateRight(rootRef, currentParent, steps);
+                    current = rootRef[0];
+                }
+            }
+        }
+        // The root (or the node that took the double-black's place)
+        // is always black.
+        if (current != null && current.red) {
+            recolor(current, false, rootRef, steps);
+        }
+    }
+
+    /**
+     * CLRS transplant: replace subtree {@code u} with subtree
+     * {@code v} (which may be null). {@code v}'s parent becomes
+     * {@code u}'s parent; {@code u}'s parent (or the root) now
+     * points at {@code v}.
+     */
+    private void transplant(Node[] rootRef, Node u, Node v) {
+        if (v != null) {
+            v.parent = u.parent;
+        }
+        if (u.parent == null) {
+            rootRef[0] = v;
+        } else if (u == u.parent.left) {
+            u.parent.left = v;
+        } else {
+            u.parent.right = v;
+        }
+    }
+
+    /** The minimum (leftmost) node of a subtree. */
+    private Node minimum(Node node) {
+        Node cur = node;
+        while (cur.left != null) {
+            cur = cur.left;
+        }
+        return cur;
+    }
+
+    /** True when the node exists and is red; a null leaf counts as black. */
+    private boolean isRed(Node node) {
+        return node != null && node.red;
     }
 
     /**
