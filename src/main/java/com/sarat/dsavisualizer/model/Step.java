@@ -24,6 +24,9 @@ import java.util.List;
  *       (null for every other algorithm)</li>
  *   <li>{@code mstEdges} — edges in the minimum spanning tree so far
  *       (null for every algorithm except Prim's and Kruskal's)</li>
+ *   <li>{@code table} — the knapsack DP table snapshot
+ *       (null for every algorithm except 0/1 Knapsack; uncomputed
+ *       cells are null)</li>
  * </ul>
  *
  * For BST steps {@code data} is empty and {@code nodes}/{@code edges}
@@ -45,8 +48,9 @@ public class Step {
     private List<Integer> aux;
     private List<List<Integer>> buckets;
     private List<List<Integer>> mstEdges;
+    private List<List<Integer>> table;
 
-    /** No-arg constructor for Jackson. Nodes/edges/aux/buckets/mstEdges stay null. */
+    /** No-arg constructor for Jackson. Nodes/edges/aux/buckets/mstEdges/table stay null. */
     public Step() {
         this.data = new ArrayList<>();
         this.highlight = new ArrayList<>();
@@ -59,6 +63,7 @@ public class Step {
         this.aux = null;
         this.buckets = null;
         this.mstEdges = null;
+        this.table = null;
     }
 
     public Step(List<Integer> data, List<Integer> highlight,
@@ -75,6 +80,7 @@ public class Step {
         this.aux = null;
         this.buckets = null;
         this.mstEdges = null;
+        this.table = null;
     }
 
     /** Full constructor, used by the BST service (nodes + edges). */
@@ -93,6 +99,7 @@ public class Step {
         this.aux = null;
         this.buckets = null;
         this.mstEdges = null;
+        this.table = null;
     }
 
     public List<Integer> getData() {
@@ -181,5 +188,13 @@ public class Step {
 
     public void setMstEdges(List<List<Integer>> mstEdges) {
         this.mstEdges = mstEdges;
+    }
+
+    public List<List<Integer>> getTable() {
+        return table;
+    }
+
+    public void setTable(List<List<Integer>> table) {
+        this.table = table;
     }
 }

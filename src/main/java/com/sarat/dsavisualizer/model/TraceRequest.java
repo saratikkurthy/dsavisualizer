@@ -15,6 +15,10 @@ import java.util.List;
  * (nullable). NOTE: the trie search reads {@code word}, not
  * {@code target} — {@code target} is an Integer and cannot hold a
  * word (Phase 8).
+ * {@code weights}/{@code values} are the knapsack item weights and
+ * values (nullable); {@code capacity} doubles as the knapsack
+ * capacity for the DP endpoint (it already existed as the hash
+ * table size — Phase 10 reuses the same field).
  */
 public class TraceRequest {
 
@@ -27,6 +31,8 @@ public class TraceRequest {
     private Integer start;
     private List<String> words;
     private String word;
+    private List<Integer> weights;
+    private List<Integer> values;
 
     public TraceRequest() {
     }
@@ -106,5 +112,21 @@ public class TraceRequest {
 
     public void setWord(String word) {
         this.word = word;
+    }
+
+    public List<Integer> getWeights() {
+        return weights;
+    }
+
+    public void setWeights(List<Integer> weights) {
+        this.weights = weights;
+    }
+
+    public List<Integer> getValues() {
+        return values;
+    }
+
+    public void setValues(List<Integer> values) {
+        this.values = values;
     }
 }
