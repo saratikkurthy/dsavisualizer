@@ -68,7 +68,7 @@ class Phase10ServiceTest {
     }
 
     @Test
-    void bellmanFordExample() {
+    void bellmanFordExample1() {
         List<Step> steps = graphService.bellmanFord(
                 bellmanFordExample(), 0);
         assertEquals(List.of(0, 4, 1, 9, 11, 14), lastData(steps));

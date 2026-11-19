@@ -32,7 +32,6 @@ public class TraceRequest {
     private List<String> words;
     private String word;
     private List<Integer> weights;
-    private List<Integer> values;
 
     public TraceRequest() {
     }
@@ -120,13 +119,5 @@ public class TraceRequest {
 
     public void setWeights(List<Integer> weights) {
         this.weights = weights;
-    }
-
-    public List<Integer> getValues() {
-        return values;
-    }
-
-    public void setValues(List<Integer> values) {
-        this.values = values;
     }
 }
