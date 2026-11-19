@@ -25,6 +25,10 @@ import java.util.List;
  * the ONLY fields Phase 11 adds: {@code values}, {@code target},
  * {@code capacity} and {@code words} already existed (LCS reuses
  * {@code words}; coin change reuses {@code values} + {@code target}).
+ * {@code costGrid} is the weighted-A* cost grid (nullable; 0 = wall,
+ * 1-9 = the cost to enter that cell) — Phase 12. It is the ONLY
+ * field Phase 12 adds: {@code startCell}/{@code goalCell} already
+ * existed and are reused for weighted A*.
  */
 public class TraceRequest {
 
@@ -41,6 +45,7 @@ public class TraceRequest {
     private List<List<Integer>> grid;
     private List<Integer> startCell;
     private List<Integer> goalCell;
+    private List<List<Integer>> costGrid;
 
     public TraceRequest() {
     }
@@ -152,5 +157,13 @@ public class TraceRequest {
 
     public void setGoalCell(List<Integer> goalCell) {
         this.goalCell = goalCell;
+    }
+
+    public List<List<Integer>> getCostGrid() {
+        return costGrid;
+    }
+
+    public void setCostGrid(List<List<Integer>> costGrid) {
+        this.costGrid = costGrid;
     }
 }

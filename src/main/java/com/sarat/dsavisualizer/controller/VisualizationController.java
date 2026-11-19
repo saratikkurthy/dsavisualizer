@@ -80,6 +80,17 @@ import java.util.Map;
  * non-empty strings or either string is longer than 12
  * characters. Coin change 400 when values are missing/empty, the
  * target is missing, negative or over 50, or any coin is <= 0.
+ * Validation rule (Phase 12): red-black delete 400 when values
+ * are missing/empty or the value is missing. Weighted A* 400 when
+ * the cost grid is missing/empty, rows differ in length, any cost
+ * is outside 0-9, or startCell/goalCell is missing, not
+ * [row, col], out of bounds, or on a wall (a cost-0 cell).
+ * Edit distance reuses the LCS validation. LPS 400 when words is
+ * not exactly one non-empty string or the string is longer than
+ * 12 characters. Floyd-Warshall 400 when graphEdges is
+ * missing/empty, any edge is not [from, to] or [from, to,
+ * weight], any node id is missing, below 0 or above 9, or a
+ * 3-element edge has a null weight; negative weights are allowed.
  */
 @RestController
 @RequestMapping("/api")
@@ -543,6 +554,37 @@ public class VisualizationController {
                 new TraceResponse("A* Pathfinding", steps));
     }
 
+    // ---- Weighted A* pathfinding (Phase 12) ----
+
+    @PostMapping("/graph/astarweighted")
+    public ResponseEntity<?> graphAStarWeighted(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateAStarWeighted(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.aStarWeighted(
+                request.getCostGrid(), request.getStartCell(),
+                request.getGoalCell());
+        return ResponseEntity.ok(
+                new TraceResponse("Weighted A* Pathfinding", steps));
+    }
+
+    // ---- Floyd-Warshall all-pairs shortest paths (Phase 12) ----
+
+    @PostMapping("/graph/floydwarshall")
+    public ResponseEntity<?> graphFloydWarshall(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateFloydWarshall(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.floydWarshall(
+                request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Floyd-Warshall", steps));
+    }
+
     // ---- 0/1 Knapsack (Phase 10) ----
 
     @PostMapping("/dp/knapsack")
@@ -582,6 +624,34 @@ public class VisualizationController {
                 request.getValues(), request.getTarget());
         return ResponseEntity.ok(
                 new TraceResponse("Coin Change", steps));
+    }
+
+    // ---- Edit distance / Longest palindromic subsequence (Phase 12) ----
+
+    @PostMapping("/dp/editdistance")
+    public ResponseEntity<?> editDistance(
+            @RequestBody TraceRequest request) {
+        // Same validation as LCS: exactly two non-empty strings,
+        // each at most 12 characters.
+        ResponseEntity<?> error = validateLcs(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dpService.editDistance(request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("Edit Distance", steps));
+    }
+
+    @PostMapping("/dp/lps")
+    public ResponseEntity<?> lps(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLps(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dpService.lps(request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("Longest Palindromic Subsequence",
+                        steps));
     }
 
     // ---- AVL tree (Phase 3) ----
@@ -647,6 +717,21 @@ public class VisualizationController {
                 valuesOf(request), request.getTarget());
         return ResponseEntity.ok(
                 new TraceResponse("Red-Black Tree Search", steps));
+    }
+
+    // ---- Red-black tree delete (Phase 12) ----
+
+    @PostMapping("/rbtree/delete")
+    public ResponseEntity<?> redBlackDelete(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateRbtreeDelete(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = redBlackService.delete(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(
+                new TraceResponse("Red-Black Tree Delete", steps));
     }
 
     // ---- Trie (Phase 8) ----
@@ -998,6 +1083,165 @@ public class VisualizationController {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error",
                                 "coins must be greater than 0"));
+            }
+        }
+        return null;
+    }
+
+    /** 400 when values are missing/empty or the value is missing. */
+    private ResponseEntity<?> validateRbtreeDelete(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "value must not be null"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the cost grid is missing/empty, rows differ in
+     * length, any cost is outside 0-9, or startCell/goalCell is
+     * missing, not [row, col], out of bounds, or on a wall (a
+     * cost-0 cell — the opposite of the binary grid, where a
+     * non-zero cell is the wall). Null means "no error".
+     */
+    private ResponseEntity<?> validateAStarWeighted(
+            TraceRequest request) {
+        if (request == null || request.getCostGrid() == null
+                || request.getCostGrid().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "costGrid must not be empty"));
+        }
+        int cols = -1;
+        for (List<Integer> row : request.getCostGrid()) {
+            if (row == null || row.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "costGrid rows must not be empty"));
+            }
+            if (cols == -1) {
+                cols = row.size();
+            } else if (row.size() != cols) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "costGrid rows must all have the same "
+                                        + "length"));
+            }
+            for (Integer cost : row) {
+                if (cost == null || cost < 0 || cost > 9) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "costs must be between 0 and 9"));
+                }
+            }
+        }
+        ResponseEntity<?> error = validateWeightedCell(
+                request.getStartCell(), request.getCostGrid(),
+                "startCell");
+        if (error != null) {
+            return error;
+        }
+        return validateWeightedCell(
+                request.getGoalCell(), request.getCostGrid(), "goalCell");
+    }
+
+    /**
+     * 400 when a cell is missing, not [row, col], out of bounds,
+     * or on a wall (a cost-0 cell in the weighted grid). Null
+     * means "no error".
+     */
+    private ResponseEntity<?> validateWeightedCell(
+            List<Integer> cell, List<List<Integer>> costGrid,
+            String name) {
+        if (cell == null || cell.size() != 2
+                || cell.get(0) == null || cell.get(1) == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            name + " must be [row, col]"));
+        }
+        int r = cell.get(0);
+        int c = cell.get(1);
+        if (r < 0 || r >= costGrid.size() || c < 0
+                || c >= costGrid.get(0).size()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", name + " is out of bounds"));
+        }
+        Integer v = costGrid.get(r).get(c);
+        if (v == null || v == 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            name + " must not be on a wall"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when words is not exactly one non-empty string or the
+     * string is longer than 12 characters (the table must stay
+     * drawable). Null means "no error".
+     */
+    private ResponseEntity<?> validateLps(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().size() != 1) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "words must contain exactly one string"));
+        }
+        String s = request.getWords().get(0);
+        if (s == null || s.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "words must not be empty"));
+        }
+        if (s.length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the string must be at most 12 characters"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, any edge is not
+     * [from, to] or [from, to, weight], any node id is missing,
+     * below 0 or above 9 (the matrix must stay drawable — 10x10
+     * max), or a 3-element edge has a null weight. Negative
+     * weights are allowed. A non-numeric weight never reaches
+     * this validator — Jackson rejects it with a 400 first.
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateFloydWarshall(
+            TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || (edge.size() != 2 && edge.size() != 3)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be [from, to] or "
+                                        + "[from, to, weight]"));
+            }
+            Integer from = edge.get(0);
+            Integer to = edge.get(1);
+            if (from == null || to == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "edge endpoints must not be null"));
+            }
+            if (from < 0 || from > 9 || to < 0 || to > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "node ids must be between 0 and 9"));
+            }
+            if (edge.size() == 3 && edge.get(2) == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "edge weight must not be null"));
             }
         }
         return null;
