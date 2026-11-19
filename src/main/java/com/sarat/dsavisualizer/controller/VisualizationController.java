@@ -9,6 +9,7 @@ import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
+import com.sarat.dsavisualizer.service.HeapSortService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.RadixService;
@@ -48,6 +49,11 @@ import java.util.Map;
  * Validation rule (Phase 4): counting/radix 400 when values are
  * missing/empty, any value is negative, or the max exceeds the
  * limit (counting 100, radix 999999).
+ * Validation rule (Phase 7): heapsort 400 when values are
+ * missing/empty. Dijkstra 400 when graphEdges/start is missing or
+ * any weight is <= 0 (Dijkstra needs non-negative weights). BST/AVL
+ * delete 400 when the value is missing; an empty tree returns the
+ * service's single "empty" Step with 200.
  */
 @RestController
 @RequestMapping("/api")
@@ -66,6 +72,7 @@ public class VisualizationController {
     private final AvlService avlService;
     private final CountingService countingService;
     private final RadixService radixService;
+    private final HeapSortService heapSortService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -78,7 +85,8 @@ public class VisualizationController {
                                    GraphService graphService,
                                    AvlService avlService,
                                    CountingService countingService,
-                                   RadixService radixService) {
+                                   RadixService radixService,
+                                   HeapSortService heapSortService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -91,6 +99,7 @@ public class VisualizationController {
         this.avlService = avlService;
         this.countingService = countingService;
         this.radixService = radixService;
+        this.heapSortService = heapSortService;
     }
 
     @GetMapping("/health")
@@ -174,6 +183,18 @@ public class VisualizationController {
         }
         List<Step> steps = radixService.radixSort(request.getValues());
         return ResponseEntity.ok(new TraceResponse("Radix Sort", steps));
+    }
+
+    // ---- Sorting (Phase 7) ----
+
+    @PostMapping("/sort/heapsort")
+    public ResponseEntity<?> heapSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = heapSortService.heapSort(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Heap Sort", steps));
     }
 
     // ---- Search (Phase 1) ----
@@ -304,6 +325,19 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("BST Search", steps));
     }
 
+    // ---- BST delete (Phase 7) ----
+
+    @PostMapping("/bst/delete")
+    public ResponseEntity<?> bstDelete(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bstService.delete(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("BST Delete", steps));
+    }
+
     // ---- Min-Heap (Phase 3) ----
 
     @PostMapping("/heap/insert")
@@ -374,6 +408,20 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("Graph DFS", steps));
     }
 
+    // ---- Graph Dijkstra (Phase 7) ----
+
+    @PostMapping("/graph/dijkstra")
+    public ResponseEntity<?> graphDijkstra(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateDijkstra(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.dijkstra(
+                request.getGraphEdges(), request.getStart());
+        return ResponseEntity.ok(
+                new TraceResponse("Graph Dijkstra", steps));
+    }
+
     // ---- AVL tree (Phase 3) ----
 
     @PostMapping("/avl/insert")
@@ -396,6 +444,19 @@ public class VisualizationController {
         List<Step> steps = avlService.search(
                 valuesOf(request), request.getTarget());
         return ResponseEntity.ok(new TraceResponse("AVL Search", steps));
+    }
+
+    // ---- AVL delete (Phase 7) ----
+
+    @PostMapping("/avl/delete")
+    public ResponseEntity<?> avlDelete(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValue(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = avlService.delete(
+                valuesOf(request), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("AVL Delete", steps));
     }
 
     // ---- Validation helpers ----
@@ -460,6 +521,27 @@ public class VisualizationController {
         if (request.getStart() == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "start must not be null"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges/start is missing or any weight is <= 0
+     * (Dijkstra needs non-negative weights). A null weight defaults
+     * to 1 and is not an error. Null means "no error".
+     */
+    private ResponseEntity<?> validateDijkstra(TraceRequest request) {
+        ResponseEntity<?> error = validateGraph(request);
+        if (error != null) {
+            return error;
+        }
+        for (List<Integer> pair : request.getGraphEdges()) {
+            if (pair != null && pair.size() == 3 && pair.get(2) != null
+                    && pair.get(2) <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Dijkstra needs non-negative weights"));
+            }
         }
         return null;
     }

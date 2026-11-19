@@ -19,17 +19,21 @@ import java.util.List;
  *
  * Layout (computed on every snapshot): in-order rank gives x
  * (x = 40 + rank * 70), depth gives y (y = 40 + depth * 70).
- * Line numbers: compare/visit = 2, final = 0.
+ * Line numbers: compare/visit = 2, mutation = 3, final = 0.
+ *
+ * {@code Node.value} is mutable on purpose: delete with two
+ * children copies the inorder successor's value into the node.
  */
 @Service
 public class BstService {
 
     private static final int LINE_COMPARE = 2;
+    private static final int LINE_SWAP = 3;
     private static final int LINE_FINAL = 0;
 
     /** Internal tree node. x/y are layout coordinates, recomputed on snapshot. */
     private static class Node {
-        final int value;
+        int value;
         final int id;
         double x;
         double y;
@@ -141,6 +145,111 @@ public class BstService {
         steps.add(bstStep(List.of(),
                 snapshotNodes(root), snapshotEdges(root),
                 "Target " + target + " not found.", LINE_FINAL));
+        return steps;
+    }
+
+    /**
+     * Delete a value. Emits one Step per comparison while walking
+     * down, a Step for the removal/replacement, then a final Step.
+     * Leaf: unlink it ("Remove leaf X."). One child: the child
+     * takes its place ("Replace X with its child Y."). Two
+     * children: replace with the inorder SUCCESSOR (smallest in the
+     * right subtree) and remove the successor ("Replace X with
+     * successor Y."). If the value is not present the trace ends
+     * with "X is not in the tree."; an empty tree gives one Step
+     * ("Tree is empty.").
+     */
+    public List<Step> delete(List<Integer> values, int value) {
+        List<Step> steps = new ArrayList<>();
+        int[] nextId = new int[]{0};
+        Node root = buildTree(values, nextId);
+
+        if (root == null) {
+            steps.add(bstStep(List.of(), List.of(), List.of(),
+                    "Tree is empty.", LINE_FINAL));
+            return steps;
+        }
+
+        // Walk down, one compare Step per visited node.
+        Node cur = root;
+        Node parent = null;
+        boolean isLeftChild = false;
+        while (cur != null && cur.value != value) {
+            String direction = value < cur.value ? "left" : "right";
+            steps.add(bstStep(List.of(cur.id),
+                    snapshotNodes(root), snapshotEdges(root),
+                    "Compare " + value + " with node " + cur.value
+                            + " — go " + direction + ".",
+                    LINE_COMPARE));
+            parent = cur;
+            if (value < cur.value) {
+                isLeftChild = true;
+                cur = cur.left;
+            } else {
+                isLeftChild = false;
+                cur = cur.right;
+            }
+        }
+        if (cur == null) {
+            steps.add(bstStep(List.of(),
+                    snapshotNodes(root), snapshotEdges(root),
+                    value + " is not in the tree.", LINE_FINAL));
+            return steps;
+        }
+
+        // Found cur. Remove it (three cases), one mutation Step.
+        if (cur.left == null && cur.right == null) {
+            // Leaf: unlink it from its parent.
+            if (parent == null) {
+                root = null;
+            } else if (isLeftChild) {
+                parent.left = null;
+            } else {
+                parent.right = null;
+            }
+            steps.add(bstStep(parent == null ? List.of()
+                            : List.of(parent.id),
+                    snapshotNodes(root), snapshotEdges(root),
+                    "Remove leaf " + value + ".", LINE_SWAP));
+        } else if (cur.left == null || cur.right == null) {
+            // One child: the child takes cur's place.
+            Node child = cur.left != null ? cur.left : cur.right;
+            if (parent == null) {
+                root = child;
+            } else if (isLeftChild) {
+                parent.left = child;
+            } else {
+                parent.right = child;
+            }
+            steps.add(bstStep(List.of(child.id),
+                    snapshotNodes(root), snapshotEdges(root),
+                    "Replace " + value + " with its child " + child.value
+                            + ".",
+                    LINE_SWAP));
+        } else {
+            // Two children: successor (smallest in the right subtree).
+            Node succParent = cur;
+            Node succ = cur.right;
+            while (succ.left != null) {
+                succParent = succ;
+                succ = succ.left;
+            }
+            int succValue = succ.value;
+            if (succParent == cur) {
+                succParent.right = succ.right;
+            } else {
+                succParent.left = succ.right;
+            }
+            cur.value = succValue;
+            steps.add(bstStep(List.of(cur.id),
+                    snapshotNodes(root), snapshotEdges(root),
+                    "Replace " + value + " with successor " + succValue
+                            + ".",
+                    LINE_SWAP));
+        }
+        steps.add(bstStep(List.of(),
+                snapshotNodes(root), snapshotEdges(root),
+                "Deleted " + value + ".", LINE_FINAL));
         return steps;
     }
 
