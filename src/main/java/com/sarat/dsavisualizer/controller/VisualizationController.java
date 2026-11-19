@@ -10,6 +10,7 @@ import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.HeapSortService;
+import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.RadixService;
@@ -61,6 +62,13 @@ import java.util.Map;
  * weight is <= 0. Kruskal's 400 when graphEdges is missing/empty
  * or any weight is <= 0. Trie insert/search 400 when the word is
  * missing/empty.
+ * Validation rule (Phase 10): Bellman-Ford 400 when graphEdges/
+ * start is missing — negative and zero weights are legal, so there
+ * is no weight validation. Topological sort 400 when graphEdges is
+ * missing/empty. Knapsack 400 when weights/values are missing/
+ * empty, their lengths differ, the capacity is missing, negative
+ * or over 30, there are more than 10 items, any weight is <= 0,
+ * or any value is negative.
  */
 @RestController
 @RequestMapping("/api")
@@ -82,6 +90,7 @@ public class VisualizationController {
     private final HeapSortService heapSortService;
     private final ShellSortService shellSortService;
     private final TrieService trieService;
+    private final KnapsackService knapsackService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -97,7 +106,8 @@ public class VisualizationController {
                                    RadixService radixService,
                                    HeapSortService heapSortService,
                                    ShellSortService shellSortService,
-                                   TrieService trieService) {
+                                   TrieService trieService,
+                                   KnapsackService knapsackService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -113,6 +123,7 @@ public class VisualizationController {
         this.heapSortService = heapSortService;
         this.shellSortService = shellSortService;
         this.trieService = trieService;
+        this.knapsackService = knapsackService;
     }
 
     @GetMapping("/health")
@@ -472,6 +483,48 @@ public class VisualizationController {
                 new TraceResponse("Graph Kruskal's", steps));
     }
 
+    // ---- Graph Bellman-Ford / Topological sort (Phase 10) ----
+
+    @PostMapping("/graph/bellmanford")
+    public ResponseEntity<?> graphBellmanFord(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBellmanFord(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.bellmanFord(
+                request.getGraphEdges(), request.getStart());
+        return ResponseEntity.ok(
+                new TraceResponse("Graph Bellman-Ford", steps));
+    }
+
+    @PostMapping("/graph/toposort")
+    public ResponseEntity<?> graphTopoSort(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTopoSort(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.topoSort(request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Graph Topological Sort", steps));
+    }
+
+    // ---- 0/1 Knapsack (Phase 10) ----
+
+    @PostMapping("/dp/knapsack")
+    public ResponseEntity<?> knapsack(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateKnapsack(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = knapsackService.knapsack(
+                request.getWeights(), request.getValues(),
+                request.getCapacity());
+        return ResponseEntity.ok(
+                new TraceResponse("0/1 Knapsack", steps));
+    }
+
     // ---- AVL tree (Phase 3) ----
 
     @PostMapping("/avl/insert")
@@ -660,6 +713,81 @@ public class VisualizationController {
                 || request.getWord().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "word must not be empty"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges/start is missing. Bellman-Ford takes
+     * negative and zero weights — there is no weight validation
+     * at all. Null means "no error".
+     */
+    private ResponseEntity<?> validateBellmanFord(TraceRequest request) {
+        return validateGraph(request);
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty (topological sort takes
+     * directed edges; weights are ignored). Null means "no error".
+     */
+    private ResponseEntity<?> validateTopoSort(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when weights/values are missing/empty, their lengths
+     * differ, the capacity is missing, negative or over 30, there
+     * are more than 10 items, any weight is <= 0, or any value is
+     * negative. Null means "no error".
+     */
+    private ResponseEntity<?> validateKnapsack(TraceRequest request) {
+        if (request == null || request.getWeights() == null
+                || request.getWeights().isEmpty()
+                || request.getValues() == null
+                || request.getValues().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "weights and values must not be empty"));
+        }
+        if (request.getWeights().size() != request.getValues().size()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "weights and values must have the same length"));
+        }
+        if (request.getCapacity() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "capacity must not be null"));
+        }
+        if (request.getCapacity() < 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "capacity must not be negative"));
+        }
+        if (request.getCapacity() > 30) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "capacity must be <= 30"));
+        }
+        if (request.getWeights().size() > 10) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "at most 10 items are allowed"));
+        }
+        for (int w : request.getWeights()) {
+            if (w <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "weights must be greater than 0"));
+            }
+        }
+        for (int v : request.getValues()) {
+            if (v < 0) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "values must not be negative"));
+            }
         }
         return null;
     }

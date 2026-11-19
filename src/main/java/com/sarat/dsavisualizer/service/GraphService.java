@@ -19,19 +19,21 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Undirected graph BFS/DFS/Dijkstra that records each visit/discovery
- * as a Step.
+ * Undirected graph BFS/DFS/Dijkstra/Prim's/Kruskal's, Bellman-Ford
+ * (negative weights allowed) and topological sort (directed,
+ * Kahn's algorithm) that record each visit/discovery as a Step.
  *
  * Steps carry the full graph ({@code nodes}/{@code edges}, circular
- * layout), {@code data} is empty for BFS/DFS and the distances array
- * for Dijkstra, {@code highlight} holds node ids being
- * visited/discovered/settled, {@code sorted} holds visited/settled
- * node ids. Line numbers: visit/discover/settle = 2, relax/swap = 3,
- * final = 0.
+ * layout), {@code data} is empty for BFS/DFS and Kruskal's, the
+ * distances array for Dijkstra and Bellman-Ford, the key array for
+ * Prim's, and the in-degree array for topological sort,
+ * {@code highlight} holds node ids being visited/discovered/
+ * settled, {@code sorted} holds visited/settled node ids. Line
+ * numbers: visit/discover/settle = 2, relax/swap = 3, final = 0.
  *
  * Edges may be 2-element {@code [from, to]} (weight defaults to 1)
  * or 3-element {@code [from, to, weight]} (Phase 7, Dijkstra).
- * BFS/DFS ignore weights.
+ * BFS/DFS/topological sort ignore weights.
  */
 @Service
 public class GraphService {
@@ -435,6 +437,218 @@ public class GraphService {
         return steps;
     }
 
+    /**
+     * Bellman-Ford shortest path from {@code start}. Weights MAY be
+     * negative — that is the point: unlike Dijkstra it does not
+     * finalise nodes early, so it finds the shorter path 0→1→2 = 1
+     * through the negative edge, where Dijkstra would settle node 2
+     * at distance 2. V-1 iterations over all edges in input order:
+     * one Step per relaxation (line 2) and one summary Step per
+     * iteration that relaxed something (line 2). Early exit: an
+     * iteration that relaxes nothing ends the trace with the final
+     * Step. A detection pass after the iterations reports a
+     * negative cycle. {@code data} is the distances array (index =
+     * node id, JSON null = infinity); {@code sorted} stays empty.
+     */
+    public List<Step> bellmanFord(List<List<Integer>> graphEdges,
+                                  Integer start) {
+        List<Step> steps = new ArrayList<>();
+        // Valid edges in input order: [from, to, weight].
+        List<int[]> edges = new ArrayList<>();
+        Set<Integer> nodeSet = new TreeSet<>();
+        if (graphEdges != null) {
+            for (List<Integer> pair : graphEdges) {
+                if (pair == null || (pair.size() != 2 && pair.size() != 3)) {
+                    continue;
+                }
+                Integer u = pair.get(0);
+                Integer v = pair.get(1);
+                if (u == null || v == null || u.equals(v)) {
+                    continue;
+                }
+                int w = pair.size() == 3 && pair.get(2) != null
+                        ? pair.get(2) : 1;
+                edges.add(new int[]{u, v, w});
+                nodeSet.add(u);
+                nodeSet.add(v);
+            }
+        }
+        List<Integer> nodes = new ArrayList<>(nodeSet);
+        if (graphEdges == null || graphEdges.isEmpty() || nodes.isEmpty()) {
+            steps.add(bellmanFordStep(List.of(), List.of(),
+                    "Graph is empty.", LINE_FINAL, List.of(), List.of()));
+            return steps;
+        }
+        if (start == null || !nodes.contains(start)) {
+            steps.add(bellmanFordStep(List.of(), List.of(),
+                    "Invalid start node.", LINE_FINAL,
+                    snapshotNodes(nodes), snapshotEdges(graphEdges)));
+            return steps;
+        }
+        List<NodeDto> nodeDtos = snapshotNodes(nodes);
+        List<EdgeDto> edgeDtos = snapshotEdges(graphEdges);
+        int maxId = nodes.get(nodes.size() - 1);
+        List<Integer> dist = new ArrayList<>();
+        for (int i = 0; i <= maxId; i++) {
+            dist.add(null);
+        }
+        dist.set(start, 0);
+        int vCount = nodes.size();
+        for (int iter = 1; iter <= vCount - 1; iter++) {
+            boolean relaxed = false;
+            for (int[] edge : edges) {
+                int u = edge[0];
+                int v = edge[1];
+                int w = edge[2];
+                Integer du = dist.get(u);
+                if (du == null) {
+                    continue;
+                }
+                int nd = du + w;
+                Integer old = dist.get(v);
+                if (old == null || nd < old) {
+                    dist.set(v, nd);
+                    relaxed = true;
+                    steps.add(bellmanFordStep(dist, List.of(u, v),
+                            "Relax edge " + u + "-" + v + " (weight " + w
+                                    + "): dist[" + v + "] "
+                                    + (old == null ? "∞" : old)
+                                    + " -> " + nd + ".",
+                            LINE_COMPARE, nodeDtos, edgeDtos));
+                }
+            }
+            if (!relaxed) {
+                // Early exit: distances are stable, so no negative
+                // cycle is reachable and the detection pass would
+                // find nothing.
+                steps.add(bellmanFordStep(dist, List.of(),
+                        "Shortest distances from " + start + ": " + dist
+                                + ".",
+                        LINE_FINAL, nodeDtos, edgeDtos));
+                return steps;
+            }
+            steps.add(bellmanFordStep(dist, List.of(),
+                    "Iteration " + iter + " complete. Distances: " + dist
+                            + ".",
+                    LINE_COMPARE, nodeDtos, edgeDtos));
+        }
+        // Detection pass: any edge still relaxable means a negative
+        // cycle is reachable from the start.
+        for (int[] edge : edges) {
+            int u = edge[0];
+            int v = edge[1];
+            int w = edge[2];
+            Integer du = dist.get(u);
+            if (du == null) {
+                continue;
+            }
+            Integer old = dist.get(v);
+            if (old == null || du + w < old) {
+                steps.add(bellmanFordStep(dist, List.of(u, v),
+                        "Negative cycle detected — no shortest path exists.",
+                        LINE_FINAL, nodeDtos, edgeDtos));
+                return steps;
+            }
+        }
+        steps.add(bellmanFordStep(dist, List.of(),
+                "Shortest distances from " + start + ": " + dist + ".",
+                LINE_FINAL, nodeDtos, edgeDtos));
+        return steps;
+    }
+
+    /**
+     * Topological sort (Kahn's algorithm, in-degree based) over the
+     * directed edges; weights are ignored. One Step per node output
+     * (line 2) and one Step when a neighbour's in-degree drops to 0
+     * (line 3), then a final Step with the order — or a cycle
+     * message when fewer nodes than V were output. {@code data} is
+     * the in-degree array (index = node id); {@code sorted} holds
+     * the nodes in the output order so far. Tie-breaking: the ready
+     * queue is FIFO, and neighbours are processed in ascending
+     * node-id order.
+     */
+    public List<Step> topoSort(List<List<Integer>> graphEdges) {
+        List<Step> steps = new ArrayList<>();
+        if (graphEdges == null || graphEdges.isEmpty()) {
+            steps.add(topoStep(List.of(), List.of(), List.of(),
+                    "Graph is empty.", LINE_FINAL, List.of(), List.of()));
+            return steps;
+        }
+        // Directed adjacency (neighbours ascending) and in-degrees.
+        Map<Integer, List<Integer>> adj = new HashMap<>();
+        Map<Integer, Integer> inDegree = new HashMap<>();
+        Set<Integer> nodeSet = new TreeSet<>();
+        for (List<Integer> pair : graphEdges) {
+            if (pair == null || (pair.size() != 2 && pair.size() != 3)) {
+                continue;
+            }
+            Integer u = pair.get(0);
+            Integer v = pair.get(1);
+            if (u == null || v == null || u.equals(v)) {
+                continue;
+            }
+            adj.computeIfAbsent(u, k -> new ArrayList<>()).add(v);
+            inDegree.put(v, inDegree.getOrDefault(v, 0) + 1);
+            inDegree.putIfAbsent(u, 0);
+            nodeSet.add(u);
+            nodeSet.add(v);
+        }
+        List<Integer> nodes = new ArrayList<>(nodeSet);
+        if (nodes.isEmpty()) {
+            steps.add(topoStep(List.of(), List.of(), List.of(),
+                    "Graph is empty.", LINE_FINAL, List.of(), List.of()));
+            return steps;
+        }
+        for (List<Integer> neighbours : adj.values()) {
+            Collections.sort(neighbours);
+        }
+        List<NodeDto> nodeDtos = snapshotNodes(nodes);
+        List<EdgeDto> edgeDtos = snapshotEdges(graphEdges);
+        int maxId = nodes.get(nodes.size() - 1);
+        List<Integer> inDeg = new ArrayList<>();
+        for (int i = 0; i <= maxId; i++) {
+            inDeg.add(inDegree.getOrDefault(i, 0));
+        }
+        // Ready queue (FIFO), seeded with in-degree-0 nodes ascending.
+        Deque<Integer> ready = new ArrayDeque<>();
+        for (int node : nodes) {
+            if (inDeg.get(node) == 0) {
+                ready.add(node);
+            }
+        }
+        List<Integer> order = new ArrayList<>();
+        while (!ready.isEmpty()) {
+            int node = ready.poll();
+            order.add(node);
+            steps.add(topoStep(inDeg, List.of(node),
+                    new ArrayList<>(order),
+                    "Output node " + node + " (in-degree 0).",
+                    LINE_COMPARE, nodeDtos, edgeDtos));
+            for (int nb : adj.getOrDefault(node, List.of())) {
+                int old = inDeg.get(nb);
+                inDeg.set(nb, old - 1);
+                if (old - 1 == 0) {
+                    ready.add(nb);
+                    steps.add(topoStep(inDeg, List.of(nb),
+                            new ArrayList<>(order),
+                            "Node " + nb + " in-degree " + old
+                                    + " -> 0 — ready.",
+                            LINE_SWAP, nodeDtos, edgeDtos));
+                }
+            }
+        }
+        if (order.size() < nodes.size()) {
+            steps.add(topoStep(inDeg, List.of(), new ArrayList<>(order),
+                    "Cycle detected — no topological order exists.",
+                    LINE_FINAL, nodeDtos, edgeDtos));
+        } else {
+            steps.add(topoStep(inDeg, List.of(), new ArrayList<>(order),
+                    "Topological order: " + order + ".",
+                    LINE_FINAL, nodeDtos, edgeDtos));
+        }
+        return steps;
+    }
+
     /** Adjacency map from the edge list (undirected, neighbours ascending). */
     private Map<Integer, List<Integer>> buildAdjacency(
             List<List<Integer>> graphEdges) {
@@ -556,6 +770,32 @@ public class GraphService {
                               String message, int line,
                               List<NodeDto> nodes, List<EdgeDto> edges) {
         return new Step(new ArrayList<>(distances), highlight, List.of(),
+                sorted, message, line, nodes, edges);
+    }
+
+    /**
+     * One Bellman-Ford Step: data = distances (copied, may contain
+     * nulls for infinity), highlight = the edge being relaxed,
+     * sorted stays empty.
+     */
+    private Step bellmanFordStep(List<Integer> distances,
+                                 List<Integer> highlight,
+                                 String message, int line,
+                                 List<NodeDto> nodes, List<EdgeDto> edges) {
+        return new Step(new ArrayList<>(distances), highlight, List.of(),
+                List.of(), message, line, nodes, edges);
+    }
+
+    /**
+     * One topological-sort Step: data = in-degree array (copied),
+     * highlight = the node being output (or the neighbour that just
+     * became ready), sorted = the output order so far.
+     */
+    private Step topoStep(List<Integer> inDegree, List<Integer> highlight,
+                          List<Integer> sorted,
+                          String message, int line,
+                          List<NodeDto> nodes, List<EdgeDto> edges) {
+        return new Step(new ArrayList<>(inDegree), highlight, List.of(),
                 sorted, message, line, nodes, edges);
     }
 
