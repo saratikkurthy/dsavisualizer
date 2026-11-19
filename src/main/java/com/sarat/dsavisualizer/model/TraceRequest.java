@@ -10,6 +10,11 @@ import java.util.List;
  * {@code capacity} is the hash table size (nullable, default 11).
  * {@code graphEdges} is the graph edge list (nullable).
  * {@code start} is the graph BFS/DFS start node (nullable).
+ * {@code words} is the words already in the trie (nullable).
+ * {@code word} is the word to insert into / search in the trie
+ * (nullable). NOTE: the trie search reads {@code word}, not
+ * {@code target} — {@code target} is an Integer and cannot hold a
+ * word (Phase 8).
  */
 public class TraceRequest {
 
@@ -20,6 +25,8 @@ public class TraceRequest {
     private Integer capacity;
     private List<List<Integer>> graphEdges;
     private Integer start;
+    private List<String> words;
+    private String word;
 
     public TraceRequest() {
     }
@@ -83,5 +90,21 @@ public class TraceRequest {
 
     public void setStart(Integer start) {
         this.start = start;
+    }
+
+    public List<String> getWords() {
+        return words;
+    }
+
+    public void setWords(List<String> words) {
+        this.words = words;
+    }
+
+    public String getWord() {
+        return word;
+    }
+
+    public void setWord(String word) {
+        this.word = word;
     }
 }

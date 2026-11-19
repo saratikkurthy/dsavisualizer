@@ -237,6 +237,204 @@ public class GraphService {
         return steps;
     }
 
+    /**
+     * Prim's minimum spanning tree from {@code start}. Edge weights
+     * default to 1 for 2-element edges.
+     *
+     * CRITICAL: Prim's keys are EDGE weights — key[v] is the minimum
+     * weight of an edge connecting v to the MST — NOT path distances
+     * from the start (that would be Dijkstra). One Step per
+     * relaxation that improves a neighbour's key (emitted first,
+     * line 3) and one Step per node added to the MST (line 2), then
+     * a final Step with the total weight. {@code data} is the key
+     * array (index = node id, JSON null = infinity);
+     * {@code sorted} holds the nodes in the MST; {@code mstEdges}
+     * holds the MST edges so far as [parent, child] pairs.
+     */
+    public List<Step> prim(List<List<Integer>> graphEdges,
+                           Integer start) {
+        List<Step> steps = new ArrayList<>();
+        Map<Integer, List<Neighbor>> wAdj =
+                buildWeightedAdjacency(graphEdges);
+        List<Integer> nodes = nodeIds(wAdj);
+        if (graphEdges == null || graphEdges.isEmpty() || nodes.isEmpty()) {
+            steps.add(mstStep(List.of(), List.of(), List.of(),
+                    List.of(), "Graph is empty.", LINE_FINAL,
+                    List.of(), List.of()));
+            return steps;
+        }
+        if (start == null || !nodes.contains(start)) {
+            steps.add(mstStep(List.of(), List.of(), List.of(),
+                    List.of(), "Invalid start node.", LINE_FINAL,
+                    snapshotNodes(nodes), snapshotEdges(graphEdges)));
+            return steps;
+        }
+        List<NodeDto> nodeDtos = snapshotNodes(nodes);
+        List<EdgeDto> edgeDtos = snapshotEdges(graphEdges);
+        int maxId = nodes.get(nodes.size() - 1);
+        List<Integer> key = new ArrayList<>();
+        for (int i = 0; i <= maxId; i++) {
+            key.add(null);
+        }
+        key.set(start, 0);
+        Map<Integer, Integer> parent = new HashMap<>();
+        Set<Integer> inMst = new HashSet<>();
+        List<Integer> mstOrder = new ArrayList<>();
+        List<List<Integer>> mstEdges = new ArrayList<>();
+        int totalWeight = 0;
+        while (true) {
+            // Pick the node outside the MST with the smallest key.
+            Integer u = null;
+            int best = Integer.MAX_VALUE;
+            for (int node : nodes) {
+                if (!inMst.contains(node) && key.get(node) != null
+                        && key.get(node) < best) {
+                    best = key.get(node);
+                    u = node;
+                }
+            }
+            if (u == null) {
+                break; // MST complete, or the rest is unreachable
+            }
+            // Relax u's neighbours (ascending), one Step per improvement.
+            for (Neighbor nb : wAdj.getOrDefault(u, List.of())) {
+                if (inMst.contains(nb.id)) {
+                    continue;
+                }
+                Integer old = key.get(nb.id);
+                if (old == null || nb.weight < old) {
+                    key.set(nb.id, nb.weight);
+                    parent.put(nb.id, u);
+                    steps.add(mstStep(key, List.of(nb.id),
+                            new ArrayList<>(mstOrder),
+                            copyMstEdges(mstEdges),
+                            "Relax edge " + u + "-" + nb.id + ": key "
+                                    + (old == null ? "∞" : old)
+                                    + " -> " + nb.weight + ".",
+                            LINE_SWAP, nodeDtos, edgeDtos));
+                }
+            }
+            // Add u to the MST.
+            inMst.add(u);
+            mstOrder.add(u);
+            String message;
+            if (u.equals(start)) {
+                message = "Add node " + u + " to the MST. Total weight: 0.";
+            } else {
+                int w = key.get(u);
+                mstEdges.add(List.of(parent.get(u), u));
+                totalWeight += w;
+                message = "Add node " + u + " to the MST via edge "
+                        + parent.get(u) + "-" + u + " (weight " + w
+                        + "). Total weight: " + totalWeight + ".";
+            }
+            steps.add(mstStep(key, List.of(u),
+                    new ArrayList<>(mstOrder), copyMstEdges(mstEdges),
+                    message, LINE_COMPARE, nodeDtos, edgeDtos));
+        }
+        steps.add(mstStep(key, List.of(), new ArrayList<>(mstOrder),
+                copyMstEdges(mstEdges),
+                "MST total weight: " + totalWeight + ".",
+                LINE_FINAL, nodeDtos, edgeDtos));
+        return steps;
+    }
+
+    /**
+     * Kruskal's minimum spanning tree. No start node — edges are
+     * sorted by weight ascending (stable: equal weights keep input
+     * order) and added unless they form a cycle (union-find). One
+     * consider Step per edge (line 2), one add or skip Step per
+     * edge (line 3), then a final Step with the total weight.
+     * {@code data} is empty; {@code sorted} holds the nodes with at
+     * least one MST edge; {@code mstEdges} holds the MST edges so
+     * far as [from, to] pairs in input order.
+     */
+    public List<Step> kruskal(List<List<Integer>> graphEdges) {
+        List<Step> steps = new ArrayList<>();
+        if (graphEdges == null || graphEdges.isEmpty()) {
+            steps.add(mstStep(List.of(), List.of(), List.of(),
+                    List.of(), "Graph is empty.", LINE_FINAL,
+                    List.of(), List.of()));
+            return steps;
+        }
+        // Collect the valid edges with their weights.
+        List<int[]> edges = new ArrayList<>(); // [from, to, weight]
+        Set<Integer> nodeSet = new TreeSet<>();
+        for (List<Integer> pair : graphEdges) {
+            if (pair == null || (pair.size() != 2 && pair.size() != 3)) {
+                continue;
+            }
+            Integer u = pair.get(0);
+            Integer v = pair.get(1);
+            if (u == null || v == null || u.equals(v)) {
+                continue;
+            }
+            int w = pair.size() == 3 && pair.get(2) != null
+                    ? pair.get(2) : 1;
+            edges.add(new int[]{u, v, w});
+            nodeSet.add(u);
+            nodeSet.add(v);
+        }
+        List<Integer> nodes = new ArrayList<>(nodeSet);
+        if (nodes.isEmpty()) {
+            steps.add(mstStep(List.of(), List.of(), List.of(),
+                    List.of(), "Graph is empty.", LINE_FINAL,
+                    List.of(), List.of()));
+            return steps;
+        }
+        List<NodeDto> nodeDtos = snapshotNodes(nodes);
+        List<EdgeDto> edgeDtos = snapshotEdges(graphEdges);
+        // Stable sort by weight ascending: equal weights keep input order.
+        edges.sort(Comparator.comparingInt(e -> e[2]));
+        // Union-find over node ids.
+        Map<Integer, Integer> ufParent = new HashMap<>();
+        for (int node : nodes) {
+            ufParent.put(node, node);
+        }
+        List<List<Integer>> mstEdges = new ArrayList<>();
+        Set<Integer> inMstNodes = new TreeSet<>();
+        int totalWeight = 0;
+        int n = nodes.size();
+        for (int[] edge : edges) {
+            if (mstEdges.size() == n - 1) {
+                break;
+            }
+            int u = edge[0];
+            int v = edge[1];
+            int w = edge[2];
+            steps.add(mstStep(List.of(), List.of(u, v),
+                    new ArrayList<>(inMstNodes), copyMstEdges(mstEdges),
+                    "Consider edge " + u + "-" + v + " (weight " + w + ").",
+                    LINE_COMPARE, nodeDtos, edgeDtos));
+            if (findRoot(ufParent, u) != findRoot(ufParent, v)) {
+                union(ufParent, u, v);
+                mstEdges.add(List.of(u, v));
+                inMstNodes.add(u);
+                inMstNodes.add(v);
+                totalWeight += w;
+                steps.add(mstStep(List.of(), List.of(u, v),
+                        new ArrayList<>(inMstNodes),
+                        copyMstEdges(mstEdges),
+                        "Add edge " + u + "-" + v + " (weight " + w
+                                + ") to the MST. Total weight: "
+                                + totalWeight + ".",
+                        LINE_SWAP, nodeDtos, edgeDtos));
+            } else {
+                steps.add(mstStep(List.of(), List.of(u, v),
+                        new ArrayList<>(inMstNodes),
+                        copyMstEdges(mstEdges),
+                        "Skip edge " + u + "-" + v + " (weight " + w
+                                + ") — it would form a cycle.",
+                        LINE_SWAP, nodeDtos, edgeDtos));
+            }
+        }
+        steps.add(mstStep(List.of(), List.of(),
+                new ArrayList<>(inMstNodes), copyMstEdges(mstEdges),
+                "MST total weight: " + totalWeight + ".",
+                LINE_FINAL, nodeDtos, edgeDtos));
+        return steps;
+    }
+
     /** Adjacency map from the edge list (undirected, neighbours ascending). */
     private Map<Integer, List<Integer>> buildAdjacency(
             List<List<Integer>> graphEdges) {
@@ -359,5 +557,57 @@ public class GraphService {
                               List<NodeDto> nodes, List<EdgeDto> edges) {
         return new Step(new ArrayList<>(distances), highlight, List.of(),
                 sorted, message, line, nodes, edges);
+    }
+
+    /**
+     * One Prim's/Kruskal's Step: data = key array (Prim's) or empty
+     * (Kruskal's), highlight = node ids, sorted = MST node ids,
+     * mstEdges = the MST edges so far.
+     */
+    private Step mstStep(List<Integer> data, List<Integer> highlight,
+                         List<Integer> sorted,
+                         List<List<Integer>> mstEdges,
+                         String message, int line,
+                         List<NodeDto> nodes, List<EdgeDto> edges) {
+        Step step = new Step(new ArrayList<>(data), highlight, List.of(),
+                sorted, message, line, nodes, edges);
+        step.setMstEdges(mstEdges);
+        return step;
+    }
+
+    /**
+     * Deep copy of the MST edge list, so later steps never mutate
+     * earlier snapshots.
+     */
+    private List<List<Integer>> copyMstEdges(
+            List<List<Integer>> mstEdges) {
+        List<List<Integer>> copy = new ArrayList<>();
+        for (List<Integer> edge : mstEdges) {
+            copy.add(new ArrayList<>(edge));
+        }
+        return copy;
+    }
+
+    /** Union-find root with path compression. */
+    private int findRoot(Map<Integer, Integer> parent, int node) {
+        int root = node;
+        while (parent.get(root) != root) {
+            root = parent.get(root);
+        }
+        while (parent.get(node) != root) {
+            int next = parent.get(node);
+            parent.put(node, root);
+            node = next;
+        }
+        return root;
+    }
+
+    /** Union by attaching one root under the other. */
+    private void union(Map<Integer, Integer> parent, int a, int b) {
+        int rootA = findRoot(parent, a);
+        int rootB = findRoot(parent, b);
+        if (rootA != rootB) {
+            parent.put(rootA, rootB);
+        }
     }
 }

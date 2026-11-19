@@ -19,6 +19,11 @@ import java.util.Map;
  * <p>Updated for Phase 4 (2026-11-18): the endpoint list now covers
  * all 26 POST trace endpoints, not just the five Phase 1 ones.</p>
  *
+ * <p>Updated for Phase 8 (2026-11-18): the endpoint list now covers
+ * all 35 POST trace endpoints (Phase 7's heapsort, dijkstra,
+ * bst/delete and avl/delete plus Phase 8's prim, kruskal,
+ * trie/insert, trie/search and shell).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -40,6 +45,8 @@ public class HomeController {
                         "POST /api/sort/quick",
                         "POST /api/sort/counting",
                         "POST /api/sort/radix",
+                        "POST /api/sort/heapsort",
+                        "POST /api/sort/shell",
                         "POST /api/search/linear",
                         "POST /api/search/binary",
                         "POST /api/stack/push",
@@ -51,14 +58,21 @@ public class HomeController {
                         "POST /api/list/search",
                         "POST /api/bst/insert",
                         "POST /api/bst/search",
+                        "POST /api/bst/delete",
                         "POST /api/heap/insert",
                         "POST /api/heap/extract-min",
                         "POST /api/hash/insert",
                         "POST /api/hash/search",
                         "POST /api/graph/bfs",
                         "POST /api/graph/dfs",
+                        "POST /api/graph/dijkstra",
+                        "POST /api/graph/prim",
+                        "POST /api/graph/kruskal",
                         "POST /api/avl/insert",
-                        "POST /api/avl/search"
+                        "POST /api/avl/search",
+                        "POST /api/avl/delete",
+                        "POST /api/trie/insert",
+                        "POST /api/trie/search"
                 )
         );
     }

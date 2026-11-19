@@ -14,8 +14,10 @@ import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.SearchService;
+import com.sarat.dsavisualizer.service.ShellSortService;
 import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.StackService;
+import com.sarat.dsavisualizer.service.TrieService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,6 +56,11 @@ import java.util.Map;
  * any weight is <= 0 (Dijkstra needs non-negative weights). BST/AVL
  * delete 400 when the value is missing; an empty tree returns the
  * service's single "empty" Step with 200.
+ * Validation rule (Phase 8): shell sort 400 when values are
+ * missing/empty. Prim's 400 when graphEdges/start is missing or any
+ * weight is <= 0. Kruskal's 400 when graphEdges is missing/empty
+ * or any weight is <= 0. Trie insert/search 400 when the word is
+ * missing/empty.
  */
 @RestController
 @RequestMapping("/api")
@@ -73,6 +80,8 @@ public class VisualizationController {
     private final CountingService countingService;
     private final RadixService radixService;
     private final HeapSortService heapSortService;
+    private final ShellSortService shellSortService;
+    private final TrieService trieService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -86,7 +95,9 @@ public class VisualizationController {
                                    AvlService avlService,
                                    CountingService countingService,
                                    RadixService radixService,
-                                   HeapSortService heapSortService) {
+                                   HeapSortService heapSortService,
+                                   ShellSortService shellSortService,
+                                   TrieService trieService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -100,6 +111,8 @@ public class VisualizationController {
         this.countingService = countingService;
         this.radixService = radixService;
         this.heapSortService = heapSortService;
+        this.shellSortService = shellSortService;
+        this.trieService = trieService;
     }
 
     @GetMapping("/health")
@@ -195,6 +208,18 @@ public class VisualizationController {
         }
         List<Step> steps = heapSortService.heapSort(request.getValues());
         return ResponseEntity.ok(new TraceResponse("Heap Sort", steps));
+    }
+
+    // ---- Sorting (Phase 8) ----
+
+    @PostMapping("/sort/shell")
+    public ResponseEntity<?> shellSort(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = shellSortService.shellSort(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Shell Sort", steps));
     }
 
     // ---- Search (Phase 1) ----
@@ -422,6 +447,31 @@ public class VisualizationController {
                 new TraceResponse("Graph Dijkstra", steps));
     }
 
+    // ---- Graph Prim's / Kruskal's MST (Phase 8) ----
+
+    @PostMapping("/graph/prim")
+    public ResponseEntity<?> graphPrim(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validatePrim(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.prim(
+                request.getGraphEdges(), request.getStart());
+        return ResponseEntity.ok(
+                new TraceResponse("Graph Prim's", steps));
+    }
+
+    @PostMapping("/graph/kruskal")
+    public ResponseEntity<?> graphKruskal(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateKruskal(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.kruskal(request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Graph Kruskal's", steps));
+    }
+
     // ---- AVL tree (Phase 3) ----
 
     @PostMapping("/avl/insert")
@@ -457,6 +507,30 @@ public class VisualizationController {
         List<Step> steps = avlService.delete(
                 valuesOf(request), request.getValue());
         return ResponseEntity.ok(new TraceResponse("AVL Delete", steps));
+    }
+
+    // ---- Trie (Phase 8) ----
+
+    @PostMapping("/trie/insert")
+    public ResponseEntity<?> trieInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateWord(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = trieService.insert(
+                request.getWords(), request.getWord());
+        return ResponseEntity.ok(new TraceResponse("Trie Insert", steps));
+    }
+
+    @PostMapping("/trie/search")
+    public ResponseEntity<?> trieSearch(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateWord(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = trieService.search(
+                request.getWords(), request.getWord());
+        return ResponseEntity.ok(new TraceResponse("Trie Search", steps));
     }
 
     // ---- Validation helpers ----
@@ -535,13 +609,57 @@ public class VisualizationController {
         if (error != null) {
             return error;
         }
+        return validateWeights(request, "Dijkstra");
+    }
+
+    /**
+     * 400 when graphEdges/start is missing or any weight is <= 0
+     * (Prim's needs non-negative weights). Null means "no error".
+     */
+    private ResponseEntity<?> validatePrim(TraceRequest request) {
+        ResponseEntity<?> error = validateGraph(request);
+        if (error != null) {
+            return error;
+        }
+        return validateWeights(request, "Prim's");
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty or any weight is <= 0
+     * (Kruskal's needs non-negative weights). Null means "no error".
+     */
+    private ResponseEntity<?> validateKruskal(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        return validateWeights(request, "Kruskal's");
+    }
+
+    /**
+     * 400 when any 3-element edge has a weight <= 0 (a null weight
+     * defaults to 1 and is not an error). Null means "no error".
+     */
+    private ResponseEntity<?> validateWeights(TraceRequest request,
+                                              String algorithm) {
         for (List<Integer> pair : request.getGraphEdges()) {
             if (pair != null && pair.size() == 3 && pair.get(2) != null
                     && pair.get(2) <= 0) {
                 return ResponseEntity.badRequest()
-                        .body(Map.of("error",
-                                "Dijkstra needs non-negative weights"));
+                        .body(Map.of("error", algorithm
+                                + " needs non-negative weights"));
             }
+        }
+        return null;
+    }
+
+    /** 400 when the word (trie insert/search) is missing or empty. */
+    private ResponseEntity<?> validateWord(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
         }
         return null;
     }

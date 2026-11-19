@@ -22,6 +22,8 @@ import java.util.List;
  *       (null for every other algorithm)</li>
  *   <li>{@code buckets} — radix sort's 10 digit buckets
  *       (null for every other algorithm)</li>
+ *   <li>{@code mstEdges} — edges in the minimum spanning tree so far
+ *       (null for every algorithm except Prim's and Kruskal's)</li>
  * </ul>
  *
  * For BST steps {@code data} is empty and {@code nodes}/{@code edges}
@@ -42,8 +44,9 @@ public class Step {
     private List<EdgeDto> edges;
     private List<Integer> aux;
     private List<List<Integer>> buckets;
+    private List<List<Integer>> mstEdges;
 
-    /** No-arg constructor for Jackson. Nodes/edges/aux/buckets stay null. */
+    /** No-arg constructor for Jackson. Nodes/edges/aux/buckets/mstEdges stay null. */
     public Step() {
         this.data = new ArrayList<>();
         this.highlight = new ArrayList<>();
@@ -55,6 +58,7 @@ public class Step {
         this.edges = null;
         this.aux = null;
         this.buckets = null;
+        this.mstEdges = null;
     }
 
     public Step(List<Integer> data, List<Integer> highlight,
@@ -70,6 +74,7 @@ public class Step {
         this.edges = null;
         this.aux = null;
         this.buckets = null;
+        this.mstEdges = null;
     }
 
     /** Full constructor, used by the BST service (nodes + edges). */
@@ -87,6 +92,7 @@ public class Step {
         this.edges = edges;
         this.aux = null;
         this.buckets = null;
+        this.mstEdges = null;
     }
 
     public List<Integer> getData() {
@@ -167,5 +173,13 @@ public class Step {
 
     public void setBuckets(List<List<Integer>> buckets) {
         this.buckets = buckets;
+    }
+
+    public List<List<Integer>> getMstEdges() {
+        return mstEdges;
+    }
+
+    public void setMstEdges(List<List<Integer>> mstEdges) {
+        this.mstEdges = mstEdges;
     }
 }
