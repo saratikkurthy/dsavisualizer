@@ -28,6 +28,11 @@ import java.util.Map;
  * graph/astarweighted, graph/floydwarshall, dp/editdistance and
  * dp/lps).</p>
  *
+ * <p>Updated for Phase 13 (2026-11-19): the endpoint list now covers
+ * all 54 POST trace endpoints (Phase 13's segmenttree/build,
+ * segmenttree/query, segmenttree/update, unionfind/union,
+ * string/kmp and backtracking/nqueens).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -89,7 +94,13 @@ public class HomeController {
                         "POST /api/rbtree/search",
                         "POST /api/rbtree/delete",
                         "POST /api/trie/insert",
-                        "POST /api/trie/search"
+                        "POST /api/trie/search",
+                        "POST /api/segmenttree/build",
+                        "POST /api/segmenttree/query",
+                        "POST /api/segmenttree/update",
+                        "POST /api/unionfind/union",
+                        "POST /api/string/kmp",
+                        "POST /api/backtracking/nqueens"
                 )
         );
     }

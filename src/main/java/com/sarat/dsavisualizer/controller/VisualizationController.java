@@ -4,6 +4,7 @@ import com.sarat.dsavisualizer.model.Step;
 import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AvlService;
+import com.sarat.dsavisualizer.service.BacktrackingService;
 import com.sarat.dsavisualizer.service.BstService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
@@ -11,16 +12,19 @@ import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.HeapSortService;
+import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.RedBlackService;
 import com.sarat.dsavisualizer.service.SearchService;
+import com.sarat.dsavisualizer.service.SegmentTreeService;
 import com.sarat.dsavisualizer.service.ShellSortService;
 import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.StackService;
 import com.sarat.dsavisualizer.service.TrieService;
+import com.sarat.dsavisualizer.service.UnionFindService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -91,6 +95,17 @@ import java.util.Map;
  * missing/empty, any edge is not [from, to] or [from, to,
  * weight], any node id is missing, below 0 or above 9, or a
  * 3-element edge has a null weight; negative weights are allowed.
+ * Validation rule (Phase 13): segment tree build/query/update 400
+ * when values are missing/empty, longer than 8, or any |value| is
+ * over 999; query also 400 when index/target is missing, out of
+ * range, or left &gt; right; update also 400 when index is missing
+ * or out of range or value is missing. Union-Find 400 when values
+ * are missing/empty or longer than 8, graphEdges is missing/empty,
+ * any pair is not [a, b] of two distinct elements from the set.
+ * KMP 400 when words is not exactly two non-empty strings, the
+ * text is longer than 40 characters, or the pattern is longer than
+ * 12 characters or longer than the text. N-Queens 400 when value
+ * is missing, below 1 or above 8.
  */
 @RestController
 @RequestMapping("/api")
@@ -115,6 +130,10 @@ public class VisualizationController {
     private final KnapsackService knapsackService;
     private final RedBlackService redBlackService;
     private final DpService dpService;
+    private final SegmentTreeService segmentTreeService;
+    private final UnionFindService unionFindService;
+    private final KmpService kmpService;
+    private final BacktrackingService backtrackingService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -133,7 +152,11 @@ public class VisualizationController {
                                    TrieService trieService,
                                    KnapsackService knapsackService,
                                    RedBlackService redBlackService,
-                                   DpService dpService) {
+                                   DpService dpService,
+                                   SegmentTreeService segmentTreeService,
+                                   UnionFindService unionFindService,
+                                   KmpService kmpService,
+                                   BacktrackingService backtrackingService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -152,6 +175,10 @@ public class VisualizationController {
         this.knapsackService = knapsackService;
         this.redBlackService = redBlackService;
         this.dpService = dpService;
+        this.segmentTreeService = segmentTreeService;
+        this.unionFindService = unionFindService;
+        this.kmpService = kmpService;
+        this.backtrackingService = backtrackingService;
     }
 
     @GetMapping("/health")
@@ -652,6 +679,91 @@ public class VisualizationController {
         return ResponseEntity.ok(
                 new TraceResponse("Longest Palindromic Subsequence",
                         steps));
+    }
+
+    // ---- Segment tree (Phase 13) ----
+
+    @PostMapping("/segmenttree/build")
+    public ResponseEntity<?> segmentTreeBuild(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSegmentTree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = segmentTreeService.build(
+                valuesOf(request));
+        return ResponseEntity.ok(
+                new TraceResponse("Segment Tree Build", steps));
+    }
+
+    @PostMapping("/segmenttree/query")
+    public ResponseEntity<?> segmentTreeQuery(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSegmentTreeQuery(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = segmentTreeService.query(
+                valuesOf(request), request.getIndex(),
+                request.getTarget());
+        return ResponseEntity.ok(
+                new TraceResponse("Segment Tree Range Sum", steps));
+    }
+
+    @PostMapping("/segmenttree/update")
+    public ResponseEntity<?> segmentTreeUpdate(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSegmentTreeUpdate(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = segmentTreeService.update(
+                valuesOf(request), request.getIndex(),
+                request.getValue());
+        return ResponseEntity.ok(
+                new TraceResponse("Segment Tree Update", steps));
+    }
+
+    // ---- Union-Find (Phase 13) ----
+
+    @PostMapping("/unionfind/union")
+    public ResponseEntity<?> unionFind(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateUnionFind(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = unionFindService.union(
+                valuesOf(request), request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Union-Find", steps));
+    }
+
+    // ---- KMP string matching (Phase 13) ----
+
+    @PostMapping("/string/kmp")
+    public ResponseEntity<?> kmp(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateKmp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = kmpService.kmp(request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("KMP String Matching", steps));
+    }
+
+    // ---- N-Queens backtracking (Phase 13) ----
+
+    @PostMapping("/backtracking/nqueens")
+    public ResponseEntity<?> nQueens(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateNQueens(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = backtrackingService.nQueens(
+                request.getValue());
+        return ResponseEntity.ok(
+                new TraceResponse("N-Queens", steps));
     }
 
     // ---- AVL tree (Phase 3) ----
@@ -1199,6 +1311,196 @@ public class VisualizationController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error",
                             "the string must be at most 12 characters"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 8, or any
+     * |value| is over 999 (the tree must stay drawable). Null
+     * means "no error".
+     */
+    private ResponseEntity<?> validateSegmentTree(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "segment tree needs at most 8 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 999) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "segment tree needs |values| <= 999"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the segment-tree values are invalid, or index
+     * (left) / target (right) is missing, out of range, or left
+     * is greater than right. Null means "no error".
+     */
+    private ResponseEntity<?> validateSegmentTreeQuery(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateSegmentTree(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getIndex() == null || request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "index and target are required"));
+        }
+        int left = request.getIndex();
+        int right = request.getTarget();
+        int n = request.getValues().size();
+        if (left < 0 || right < 0 || left >= n || right >= n
+                || left > right) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "range must satisfy 0 <= left <= right < "
+                                    + n));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the segment-tree values are invalid, or index is
+     * missing or out of range, or value is missing. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateSegmentTreeUpdate(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateSegmentTree(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getIndex() == null || request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "index and value are required"));
+        }
+        int index = request.getIndex();
+        int n = request.getValues().size();
+        if (index < 0 || index >= n) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "index must be between 0 and " + (n - 1)));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty or longer than 8,
+     * graphEdges is missing/empty, or any pair is not [a, b] of
+     * two distinct elements from the set. (Element labels are
+     * arbitrary integers — unlike the segment tree there is no
+     * |value| limit here.) Null means "no error".
+     */
+    private ResponseEntity<?> validateUnionFind(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "union-find needs at most 8 elements"));
+        }
+        if (request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "graphEdges must not be empty"));
+        }
+        for (List<Integer> pair : request.getGraphEdges()) {
+            if (pair == null || pair.size() != 2
+                    || pair.get(0) == null || pair.get(1) == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each union pair must be [a, b]"));
+            }
+            int a = pair.get(0);
+            int b = pair.get(1);
+            if (!request.getValues().contains(a)
+                    || !request.getValues().contains(b)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "union pair elements must be in the "
+                                        + "element set"));
+            }
+            if (a == b) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "a union pair must have two distinct "
+                                        + "elements"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when words is not exactly two non-empty strings, the
+     * text is longer than 40 characters, or the pattern is longer
+     * than 12 characters or longer than the text. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateKmp(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().size() != 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "words must contain exactly two strings"));
+        }
+        String text = request.getWords().get(0);
+        String pattern = request.getWords().get(1);
+        if (text == null || pattern == null
+                || text.isEmpty() || pattern.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "text and pattern must not be empty"));
+        }
+        if (text.length() > 40) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the text must be at most 40 characters"));
+        }
+        if (pattern.length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the pattern must be at most 12 "
+                                    + "characters"));
+        }
+        if (pattern.length() > text.length()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the pattern must not be longer than the "
+                                    + "text"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when value (n) is missing, below 1 or above 8. Null
+     * means "no error".
+     */
+    private ResponseEntity<?> validateNQueens(TraceRequest request) {
+        if (request == null || request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "value is required"));
+        }
+        int n = request.getValue();
+        if (n < 1 || n > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "n must be between 1 and 8"));
         }
         return null;
     }
