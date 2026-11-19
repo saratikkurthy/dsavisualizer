@@ -24,9 +24,9 @@ import java.util.List;
  *       (null for every other algorithm)</li>
  *   <li>{@code mstEdges} — edges in the minimum spanning tree so far
  *       (null for every algorithm except Prim's and Kruskal's)</li>
- *   <li>{@code table} — the knapsack DP table snapshot
- *       (null for every algorithm except 0/1 Knapsack; uncomputed
- *       cells are null)</li>
+ *   <li>{@code table} — the knapsack DP table snapshot, the LCS
+ *       DP table snapshot, or the A* grid state snapshot (null
+ *       for every other algorithm; uncomputed cells are null)</li>
  * </ul>
  *
  * For BST steps {@code data} is empty and {@code nodes}/{@code edges}

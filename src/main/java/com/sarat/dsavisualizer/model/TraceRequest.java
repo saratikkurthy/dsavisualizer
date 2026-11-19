@@ -19,6 +19,12 @@ import java.util.List;
  * values (nullable); {@code capacity} doubles as the knapsack
  * capacity for the DP endpoint (it already existed as the hash
  * table size — Phase 10 reuses the same field).
+ * {@code grid} is the A* pathfinding grid (nullable; 0 = free,
+ * 1 = wall); {@code startCell}/{@code goalCell} are the A* start
+ * and goal as [row, col] (nullable) — Phase 11. These three are
+ * the ONLY fields Phase 11 adds: {@code values}, {@code target},
+ * {@code capacity} and {@code words} already existed (LCS reuses
+ * {@code words}; coin change reuses {@code values} + {@code target}).
  */
 public class TraceRequest {
 
@@ -32,6 +38,9 @@ public class TraceRequest {
     private List<String> words;
     private String word;
     private List<Integer> weights;
+    private List<List<Integer>> grid;
+    private List<Integer> startCell;
+    private List<Integer> goalCell;
 
     public TraceRequest() {
     }
@@ -119,5 +128,29 @@ public class TraceRequest {
 
     public void setWeights(List<Integer> weights) {
         this.weights = weights;
+    }
+
+    public List<List<Integer>> getGrid() {
+        return grid;
+    }
+
+    public void setGrid(List<List<Integer>> grid) {
+        this.grid = grid;
+    }
+
+    public List<Integer> getStartCell() {
+        return startCell;
+    }
+
+    public void setStartCell(List<Integer> startCell) {
+        this.startCell = startCell;
+    }
+
+    public List<Integer> getGoalCell() {
+        return goalCell;
+    }
+
+    public void setGoalCell(List<Integer> goalCell) {
+        this.goalCell = goalCell;
     }
 }

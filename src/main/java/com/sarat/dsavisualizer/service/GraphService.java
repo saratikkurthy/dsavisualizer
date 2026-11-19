@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -649,6 +650,175 @@ public class GraphService {
         return steps;
     }
 
+    /**
+     * A* pathfinding on a grid. 4-directional movement (up/right/
+     * down/left), cost 1 per step, Manhattan distance heuristic
+     * (admissible, so the path found is a shortest one). One Step
+     * per cell popped from the open set (line 2), then a final Step
+     * with the path (line 0) — or "No path found." when the open
+     * set empties. {@code table} is the grid snapshot, one state
+     * code per cell: 0 = free/unvisited, 1 = wall, 2 = in the open
+     * set, 3 = closed/visited, 4 = current cell, 5 = path.
+     * {@code highlight} is [row, col] (the cell being processed).
+     * Tie-breaking in the open set is deterministic: lowest f,
+     * then lowest h, then lowest row, then lowest column.
+     */
+    public List<Step> aStar(List<List<Integer>> grid,
+                            List<Integer> startCell,
+                            List<Integer> goalCell) {
+        List<Step> steps = new ArrayList<>();
+        if (grid == null || grid.isEmpty() || startCell == null
+                || startCell.size() != 2 || goalCell == null
+                || goalCell.size() != 2) {
+            steps.add(aStarStep(List.of(), List.of(),
+                    "Invalid grid.", LINE_FINAL));
+            return steps;
+        }
+        int rows = grid.size();
+        int cols = grid.get(0).size();
+        // State table: 0 = free, 1 = wall (any non-zero cell).
+        List<List<Integer>> state = new ArrayList<>();
+        for (List<Integer> row : grid) {
+            List<Integer> stateRow = new ArrayList<>();
+            for (Integer cell : row) {
+                stateRow.add(cell != null && cell != 0 ? 1 : 0);
+            }
+            state.add(stateRow);
+        }
+        int sr = startCell.get(0);
+        int sc = startCell.get(1);
+        int gr = goalCell.get(0);
+        int gc = goalCell.get(1);
+        if (sr < 0 || sr >= rows || sc < 0 || sc >= cols
+                || gr < 0 || gr >= rows || gc < 0 || gc >= cols
+                || state.get(sr).get(sc) == 1
+                || state.get(gr).get(gc) == 1) {
+            steps.add(aStarStep(state, List.of(),
+                    "Invalid start or goal.", LINE_FINAL));
+            return steps;
+        }
+        int[][] gScore = new int[rows][cols];
+        int[][] cameFromR = new int[rows][cols];
+        int[][] cameFromC = new int[rows][cols];
+        boolean[][] closed = new boolean[rows][cols];
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                gScore[r][c] = Integer.MAX_VALUE;
+                cameFromR[r][c] = -1;
+                cameFromC[r][c] = -1;
+            }
+        }
+        gScore[sr][sc] = 0;
+        PriorityQueue<AStarCell> open = new PriorityQueue<>(
+                (a, b) -> a.f() != b.f() ? Integer.compare(a.f(), b.f())
+                        : a.h != b.h ? Integer.compare(a.h, b.h)
+                        : a.r != b.r ? Integer.compare(a.r, b.r)
+                        : Integer.compare(a.c, b.c));
+        open.add(new AStarCell(sr, sc, 0, manhattan(sr, sc, gr, gc)));
+        state.get(sr).set(sc, 2);
+        int[] current = null; // [row, col] of the last popped cell
+        // 4-directional neighbours: up, right, down, left.
+        int[][] dirs = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+        while (!open.isEmpty()) {
+            AStarCell cell = open.poll();
+            if (closed[cell.r][cell.c]) {
+                continue; // stale entry (a better path was found)
+            }
+            // The previously current cell is now closed.
+            if (current != null) {
+                state.get(current[0]).set(current[1], 3);
+            }
+            closed[cell.r][cell.c] = true;
+            current = new int[]{cell.r, cell.c};
+            state.get(cell.r).set(cell.c, 4);
+            if (cell.r == gr && cell.c == gc) {
+                // Reconstruct the path from the goal back to the start.
+                List<int[]> path = new ArrayList<>();
+                int pr = gr;
+                int pc = gc;
+                while (pr != -1) {
+                    path.add(new int[]{pr, pc});
+                    int nr = cameFromR[pr][pc];
+                    int nc = cameFromC[pr][pc];
+                    pr = nr;
+                    pc = nc;
+                }
+                Collections.reverse(path);
+                for (int[] p : path) {
+                    state.get(p[0]).set(p[1], 5);
+                }
+                StringBuilder pathText = new StringBuilder();
+                for (int k = 0; k < path.size(); k++) {
+                    if (k > 0) {
+                        pathText.append(" -> ");
+                    }
+                    pathText.append("(").append(path.get(k)[0])
+                            .append(",").append(path.get(k)[1]).append(")");
+                }
+                steps.add(aStarStep(state, List.of(gr, gc),
+                        "Path found! Length " + (path.size() - 1)
+                                + ". Path: " + pathText + ".",
+                        LINE_FINAL));
+                return steps;
+            }
+            steps.add(aStarStep(state, List.of(cell.r, cell.c),
+                    "Visit (" + cell.r + "," + cell.c + "). f = g + h = "
+                            + cell.g + " + " + cell.h + " = " + cell.f()
+                            + ".",
+                    LINE_COMPARE));
+            for (int[] dir : dirs) {
+                int nr = cell.r + dir[0];
+                int nc = cell.c + dir[1];
+                if (nr < 0 || nr >= rows || nc < 0 || nc >= cols
+                        || state.get(nr).get(nc) == 1 || closed[nr][nc]) {
+                    continue;
+                }
+                int tentative = gScore[cell.r][cell.c] + 1;
+                if (tentative < gScore[nr][nc]) {
+                    gScore[nr][nc] = tentative;
+                    cameFromR[nr][nc] = cell.r;
+                    cameFromC[nr][nc] = cell.c;
+                    open.add(new AStarCell(nr, nc, tentative,
+                            manhattan(nr, nc, gr, gc)));
+                    if (state.get(nr).get(nc) == 0) {
+                        state.get(nr).set(nc, 2);
+                    }
+                }
+            }
+        }
+        // The open set emptied without reaching the goal.
+        if (current != null) {
+            state.get(current[0]).set(current[1], 3);
+        }
+        steps.add(aStarStep(state, List.of(), "No path found.",
+                LINE_FINAL));
+        return steps;
+    }
+
+    /** Manhattan distance between two grid cells. */
+    private int manhattan(int r1, int c1, int r2, int c2) {
+        return Math.abs(r1 - r2) + Math.abs(c1 - c2);
+    }
+
+    /** One cell in the A* open set: position, g and h. f = g + h. */
+    private static class AStarCell {
+        final int r;
+        final int c;
+        final int g;
+        final int h;
+
+        AStarCell(int r, int c, int g, int h) {
+            this.r = r;
+            this.c = c;
+            this.g = g;
+            this.h = h;
+        }
+
+        int f() {
+            return g + h;
+        }
+    }
+
     /** Adjacency map from the edge list (undirected, neighbours ascending). */
     private Map<Integer, List<Integer>> buildAdjacency(
             List<List<Integer>> graphEdges) {
@@ -797,6 +967,31 @@ public class GraphService {
                           List<NodeDto> nodes, List<EdgeDto> edges) {
         return new Step(new ArrayList<>(inDegree), highlight, List.of(),
                 sorted, message, line, nodes, edges);
+    }
+
+    /**
+     * One A* Step: table = the grid state snapshot (deep copy),
+     * highlight = [row, col] of the cell being processed.
+     */
+    private Step aStarStep(List<List<Integer>> table,
+                           List<Integer> highlight,
+                           String message, int line) {
+        Step step = new Step(List.of(), highlight, List.of(), List.of(),
+                message, line);
+        step.setTable(copyTable(table));
+        return step;
+    }
+
+    /**
+     * Deep copy of a grid/table (null cells included), so later
+     * steps never mutate earlier snapshots.
+     */
+    private List<List<Integer>> copyTable(List<List<Integer>> table) {
+        List<List<Integer>> copy = new ArrayList<>();
+        for (List<Integer> row : table) {
+            copy.add(new ArrayList<>(row));
+        }
+        return copy;
     }
 
     /**

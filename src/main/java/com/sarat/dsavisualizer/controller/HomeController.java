@@ -19,9 +19,9 @@ import java.util.Map;
  * <p>Updated for Phase 4 (2026-11-18): the endpoint list now covers
  * all 26 POST trace endpoints, not just the five Phase 1 ones.</p>
  *
- * <p>Updated for Phase 10 (2026-11-19): the endpoint list now covers
- * all 38 POST trace endpoints (Phase 10's bellmanford, toposort and
- * dp/knapsack).</p>
+ * <p>Updated for Phase 11 (2026-11-19): the endpoint list now covers
+ * all 43 POST trace endpoints (Phase 11's astar, rbtree/insert,
+ * rbtree/search, dp/lcs and dp/coinchange).</p>
  *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
@@ -69,10 +69,15 @@ public class HomeController {
                         "POST /api/graph/kruskal",
                         "POST /api/graph/bellmanford",
                         "POST /api/graph/toposort",
+                        "POST /api/graph/astar",
                         "POST /api/dp/knapsack",
+                        "POST /api/dp/lcs",
+                        "POST /api/dp/coinchange",
                         "POST /api/avl/insert",
                         "POST /api/avl/search",
                         "POST /api/avl/delete",
+                        "POST /api/rbtree/insert",
+                        "POST /api/rbtree/search",
                         "POST /api/trie/insert",
                         "POST /api/trie/search"
                 )

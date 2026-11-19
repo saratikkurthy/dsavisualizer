@@ -9,6 +9,11 @@ package com.sarat.dsavisualizer.model;
  * frontend shows {@code label} when present, else {@code value}.
  * Null for every other node.
  *
+ * {@code color} is "red" / "black" for red-black tree nodes
+ * (Phase 11): the frontend colours the node by it. Null for every
+ * other node (BST/AVL leave it null and the frontend renders the
+ * default node colour).
+ *
  * Jackson-friendly POJO: no-arg constructor plus getters/setters.
  */
 public class NodeDto {
@@ -18,6 +23,7 @@ public class NodeDto {
     private double x;
     private double y;
     private String label;
+    private String color;
 
     /** No-arg constructor for Jackson. */
     public NodeDto() {
@@ -29,6 +35,7 @@ public class NodeDto {
         this.x = x;
         this.y = y;
         this.label = null;
+        this.color = null;
     }
 
     public int getId() {
@@ -69,5 +76,13 @@ public class NodeDto {
 
     public void setLabel(String label) {
         this.label = label;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
     }
 }

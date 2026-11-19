@@ -6,6 +6,7 @@ import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BstService;
 import com.sarat.dsavisualizer.service.CountingService;
+import com.sarat.dsavisualizer.service.DpService;
 import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
@@ -14,6 +15,7 @@ import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.RadixService;
+import com.sarat.dsavisualizer.service.RedBlackService;
 import com.sarat.dsavisualizer.service.SearchService;
 import com.sarat.dsavisualizer.service.ShellSortService;
 import com.sarat.dsavisualizer.service.SortingService;
@@ -69,6 +71,15 @@ import java.util.Map;
  * empty, their lengths differ, the capacity is missing, negative
  * or over 30, there are more than 10 items, any weight is <= 0,
  * or any value is negative.
+ * Validation rule (Phase 11): A* 400 when the grid is
+ * missing/empty, rows differ in length, startCell/goalCell is
+ * missing or not [row, col], or start/goal is out of bounds or on
+ * a wall. Red-black insert 400 when values are missing/empty;
+ * red-black search 400 when values are missing/empty or the
+ * target is missing. LCS 400 when words is not exactly two
+ * non-empty strings or either string is longer than 12
+ * characters. Coin change 400 when values are missing/empty, the
+ * target is missing, negative or over 50, or any coin is <= 0.
  */
 @RestController
 @RequestMapping("/api")
@@ -91,6 +102,8 @@ public class VisualizationController {
     private final ShellSortService shellSortService;
     private final TrieService trieService;
     private final KnapsackService knapsackService;
+    private final RedBlackService redBlackService;
+    private final DpService dpService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -107,7 +120,9 @@ public class VisualizationController {
                                    HeapSortService heapSortService,
                                    ShellSortService shellSortService,
                                    TrieService trieService,
-                                   KnapsackService knapsackService) {
+                                   KnapsackService knapsackService,
+                                   RedBlackService redBlackService,
+                                   DpService dpService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -124,6 +139,8 @@ public class VisualizationController {
         this.shellSortService = shellSortService;
         this.trieService = trieService;
         this.knapsackService = knapsackService;
+        this.redBlackService = redBlackService;
+        this.dpService = dpService;
     }
 
     @GetMapping("/health")
@@ -510,6 +527,22 @@ public class VisualizationController {
                 new TraceResponse("Graph Topological Sort", steps));
     }
 
+    // ---- A* pathfinding (Phase 11) ----
+
+    @PostMapping("/graph/astar")
+    public ResponseEntity<?> graphAStar(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateAStar(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.aStar(
+                request.getGrid(), request.getStartCell(),
+                request.getGoalCell());
+        return ResponseEntity.ok(
+                new TraceResponse("A* Pathfinding", steps));
+    }
+
     // ---- 0/1 Knapsack (Phase 10) ----
 
     @PostMapping("/dp/knapsack")
@@ -523,6 +556,32 @@ public class VisualizationController {
                 request.getCapacity());
         return ResponseEntity.ok(
                 new TraceResponse("0/1 Knapsack", steps));
+    }
+
+    // ---- Longest common subsequence / Coin change (Phase 11) ----
+
+    @PostMapping("/dp/lcs")
+    public ResponseEntity<?> lcs(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLcs(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dpService.lcs(request.getWords());
+        return ResponseEntity.ok(
+                new TraceResponse("Longest Common Subsequence", steps));
+    }
+
+    @PostMapping("/dp/coinchange")
+    public ResponseEntity<?> coinChange(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateCoinChange(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dpService.coinChange(
+                request.getValues(), request.getTarget());
+        return ResponseEntity.ok(
+                new TraceResponse("Coin Change", steps));
     }
 
     // ---- AVL tree (Phase 3) ----
@@ -560,6 +619,34 @@ public class VisualizationController {
         List<Step> steps = avlService.delete(
                 valuesOf(request), request.getValue());
         return ResponseEntity.ok(new TraceResponse("AVL Delete", steps));
+    }
+
+    // ---- Red-black tree (Phase 11) ----
+
+    @PostMapping("/rbtree/insert")
+    public ResponseEntity<?> redBlackInsert(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = redBlackService.insert(
+                valuesOf(request));
+        return ResponseEntity.ok(
+                new TraceResponse("Red-Black Tree Insert", steps));
+    }
+
+    @PostMapping("/rbtree/search")
+    public ResponseEntity<?> redBlackSearch(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSearch(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = redBlackService.search(
+                valuesOf(request), request.getTarget());
+        return ResponseEntity.ok(
+                new TraceResponse("Red-Black Tree Search", steps));
     }
 
     // ---- Trie (Phase 8) ----
@@ -787,6 +874,130 @@ public class VisualizationController {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error",
                                 "values must not be negative"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the grid is missing/empty, rows differ in length,
+     * or startCell/goalCell is missing, not [row, col], out of
+     * bounds, or on a wall. Null means "no error".
+     */
+    private ResponseEntity<?> validateAStar(TraceRequest request) {
+        if (request == null || request.getGrid() == null
+                || request.getGrid().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "grid must not be empty"));
+        }
+        int cols = -1;
+        for (List<Integer> row : request.getGrid()) {
+            if (row == null || row.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "grid rows must not be empty"));
+            }
+            if (cols == -1) {
+                cols = row.size();
+            } else if (row.size() != cols) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "grid rows must all have the same length"));
+            }
+        }
+        ResponseEntity<?> error = validateCell(
+                request.getStartCell(), request.getGrid(), "startCell");
+        if (error != null) {
+            return error;
+        }
+        return validateCell(
+                request.getGoalCell(), request.getGrid(), "goalCell");
+    }
+
+    /**
+     * 400 when a cell is missing, not [row, col], out of bounds,
+     * or on a wall (any non-zero grid cell). Null means "no error".
+     */
+    private ResponseEntity<?> validateCell(List<Integer> cell,
+                                           List<List<Integer>> grid,
+                                           String name) {
+        if (cell == null || cell.size() != 2
+                || cell.get(0) == null || cell.get(1) == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            name + " must be [row, col]"));
+        }
+        int r = cell.get(0);
+        int c = cell.get(1);
+        if (r < 0 || r >= grid.size() || c < 0
+                || c >= grid.get(0).size()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", name + " is out of bounds"));
+        }
+        Integer v = grid.get(r).get(c);
+        if (v != null && v != 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            name + " must not be on a wall"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when words is not exactly two non-empty strings or
+     * either string is longer than 12 characters (the table must
+     * stay drawable). Null means "no error".
+     */
+    private ResponseEntity<?> validateLcs(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().size() != 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "words must contain exactly two strings"));
+        }
+        for (String s : request.getWords()) {
+            if (s == null || s.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "words must not be empty"));
+            }
+            if (s.length() > 12) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each string must be at most 12 characters"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, the target is missing,
+     * negative or over 50 (the array must stay drawable), or any
+     * coin is <= 0. Null means "no error".
+     */
+    private ResponseEntity<?> validateCoinChange(TraceRequest request) {
+        if (request == null || request.getValues() == null
+                || request.getValues().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "values must not be empty"));
+        }
+        if (request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "target must not be null"));
+        }
+        if (request.getTarget() < 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "target must not be negative"));
+        }
+        if (request.getTarget() > 50) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "target must be <= 50"));
+        }
+        for (int coin : request.getValues()) {
+            if (coin <= 0) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "coins must be greater than 0"));
             }
         }
         return null;
