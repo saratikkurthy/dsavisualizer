@@ -3,10 +3,12 @@ package com.sarat.dsavisualizer.controller;
 import com.sarat.dsavisualizer.model.Step;
 import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
+import com.sarat.dsavisualizer.service.AhoCorasickService;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BacktrackingService;
 import com.sarat.dsavisualizer.service.BloomFilterService;
 import com.sarat.dsavisualizer.service.BoyerMooreService;
+import com.sarat.dsavisualizer.service.BridgesService;
 import com.sarat.dsavisualizer.service.BstService;
 import com.sarat.dsavisualizer.service.BTreeService;
 import com.sarat.dsavisualizer.service.BucketSortService;
@@ -23,6 +25,7 @@ import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LfuCacheService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.LruCacheService;
+import com.sarat.dsavisualizer.service.ManacherService;
 import com.sarat.dsavisualizer.service.MaxFlowService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.QuickSelectService;
@@ -175,6 +178,16 @@ import java.util.Set;
  * Sudoku 400 when the grid is missing, not 9 rows of 9, any
  * value is outside 0..9, or the givens are inconsistent (a
  * duplicate in a row, column or 3×3 box).
+ * Validation rule (Phase 21): Aho-Corasick 400 when the text is
+ * missing/empty, longer than 30 characters, or not lowercase
+ * a–z, or patterns are missing/empty, more than 5, or any
+ * pattern is empty, longer than 10 characters, or not lowercase
+ * a–z. Bridges 400 when graphEdges is missing/empty, there are
+ * fewer than 2 or more than 12 edges, any edge is not
+ * [from, to], or any node id is outside 0..20, or a given start
+ * is not a node in the graph (a missing start defaults to the
+ * smallest node). Manacher 400 when the word is missing/empty,
+ * longer than 20 characters, or not lowercase a–z.
  */
 @RestController
 @RequestMapping("/api")
@@ -219,6 +232,9 @@ public class VisualizationController {
     private final MaxFlowService maxFlowService;
     private final LfuCacheService lfuCacheService;
     private final SudokuService sudokuService;
+    private final AhoCorasickService ahoCorasickService;
+    private final BridgesService bridgesService;
+    private final ManacherService manacherService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -257,7 +273,10 @@ public class VisualizationController {
                                    HuffmanService huffmanService,
                                    MaxFlowService maxFlowService,
                                    LfuCacheService lfuCacheService,
-                                   SudokuService sudokuService) {
+                                   SudokuService sudokuService,
+                                   AhoCorasickService ahoCorasickService,
+                                   BridgesService bridgesService,
+                                   ManacherService manacherService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -296,6 +315,9 @@ public class VisualizationController {
         this.maxFlowService = maxFlowService;
         this.lfuCacheService = lfuCacheService;
         this.sudokuService = sudokuService;
+        this.ahoCorasickService = ahoCorasickService;
+        this.bridgesService = bridgesService;
+        this.manacherService = manacherService;
     }
 
     @GetMapping("/health")
@@ -1289,6 +1311,42 @@ public class VisualizationController {
         }
         List<Step> steps = sudokuService.sudoku(request.getGrid());
         return ResponseEntity.ok(new TraceResponse("Sudoku Solver", steps));
+    }
+
+    // ---- Aho-Corasick, bridges, Manacher (Phase 21) ----
+
+    @PostMapping("/string/ahocorasick")
+    public ResponseEntity<?> ahoCorasick(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateAhoCorasick(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = ahoCorasickService.ahocorasick(
+                request.getWord(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse("Aho-Corasick", steps));
+    }
+
+    @PostMapping("/graph/bridges")
+    public ResponseEntity<?> graphBridges(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBridges(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bridgesService.bridges(
+                request.getGraphEdges(), request.getStart());
+        return ResponseEntity.ok(
+                new TraceResponse("Bridges & Articulation", steps));
+    }
+
+    @PostMapping("/string/manacher")
+    public ResponseEntity<?> manacher(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateManacher(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = manacherService.manacher(request.getWord());
+        return ResponseEntity.ok(
+                new TraceResponse("Manacher's Algorithm", steps));
     }
 
     // ---- Validation helpers ----
@@ -2554,6 +2612,133 @@ public class VisualizationController {
                     .body(Map.of("error",
                             "start and target must be nodes in the "
                                     + "graph"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the text is missing/empty, longer than 30
+     * characters, or not lowercase a–z, or patterns are
+     * missing/empty, more than 5, or any pattern is empty,
+     * longer than 10 characters, or not lowercase a–z.
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateAhoCorasick(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 30) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "aho-corasick needs a text of at most 30 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "aho-corasick needs lowercase a-z only"));
+            }
+        }
+        if (request.getWords() == null || request.getWords().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "aho-corasick needs at least one pattern"));
+        }
+        if (request.getWords().size() > 5) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "aho-corasick needs at most 5 patterns"));
+        }
+        for (String pattern : request.getWords()) {
+            if (pattern == null || pattern.isEmpty()
+                    || pattern.length() > 10) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "patterns must be 1 to 10 characters"));
+            }
+            for (char c : pattern.toCharArray()) {
+                if (c < 'a' || c > 'z') {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "patterns need lowercase a-z only"));
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, there are fewer than
+     * 2 or more than 12 edges, any edge is not [from, to], any
+     * node id is outside 0..20, or a given start is not a node
+     * in the graph. A missing start is allowed — it defaults to
+     * the smallest node. Null means "no error".
+     */
+    private ResponseEntity<?> validateBridges(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        if (request.getGraphEdges().size() < 2
+                || request.getGraphEdges().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bridges need between 2 and 12 edges"));
+        }
+        Set<Integer> nodes = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() != 2) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be [from, to]"));
+            }
+            Integer u = edge.get(0);
+            Integer v = edge.get(1);
+            if (u == null || v == null || u < 0 || u > 20
+                    || v < 0 || v > 20) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "bridges node ids must be between "
+                                        + "0 and 20"));
+            }
+            nodes.add(u);
+            nodes.add(v);
+        }
+        if (request.getStart() != null
+                && !nodes.contains(request.getStart())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start must be a node in the graph"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing/empty, longer than 20
+     * characters, or not lowercase a–z. Null means "no error".
+     */
+    private ResponseEntity<?> validateManacher(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 20) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "manacher needs a word of at most 20 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "manacher needs lowercase a-z only"));
+            }
         }
         return null;
     }

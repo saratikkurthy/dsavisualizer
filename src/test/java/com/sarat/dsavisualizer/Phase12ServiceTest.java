@@ -301,8 +301,6 @@ class Phase12ServiceTest {
         assertEquals(0, countState(steps, 5));
     }
 
-    // ---- Edit-distance tests ----
-
 
     // ---- LPS tests ----
 
