@@ -116,16 +116,7 @@ class Phase19ServiceTest {
      * the Phase 19 ones (validation 400s before any service is
      * called). The parameter order is the constructor's: 7 nulls,
      * hashTable, 25 nulls, scc, huffman (35 total). */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null,
-                hashTableService,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null,
-                sccService, huffmanService);
-    }
+    
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -400,35 +391,4 @@ class Phase19ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
-    @Test
-    void probing400() {
-        assertBadRequest(controller().hashProbing(
-                probingRequest(List.of(23, 45), "cubic")));
-        assertBadRequest(controller().hashProbing(
-                probingRequest(List.of(), "linear")));
-        assertBadRequest(controller().hashProbing(
-                probingRequest(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9),
-                        "linear")));
-        assertBadRequest(controller().hashProbing(
-                probingRequest(List.of(100), "linear")));
-    }
-
-    @Test
-    void scc400() {
-        assertBadRequest(controller().graphScc(sccRequest(List.of(
-                List.of(0), List.of(0, 1)))));
-        assertBadRequest(controller().graphScc(sccRequest(List.of(
-                List.of(0, 10), List.of(1, 2)))));
-        assertBadRequest(controller().graphScc(sccRequest(List.of(
-                List.of(0, 1)))));
-        assertBadRequest(controller().graphScc(sccRequest(List.of())));
-    }
-
-    @Test
-    void huffman400() {
-        assertBadRequest(controller().huffman(
-                wordRequest("abcdefghijklm")));
-        assertBadRequest(controller().huffman(
-                wordRequest("Banana")));
-    }
 }

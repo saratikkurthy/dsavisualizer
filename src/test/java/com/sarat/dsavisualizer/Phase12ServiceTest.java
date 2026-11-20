@@ -303,7 +303,6 @@ class Phase12ServiceTest {
 
     // ---- Edit-distance tests ----
 
-    
 
     // ---- LPS tests ----
 

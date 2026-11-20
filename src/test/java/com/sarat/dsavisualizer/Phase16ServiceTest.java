@@ -73,8 +73,10 @@ class Phase16ServiceTest {
         return request;
     }
 
-
-
+    /** The controller under test: nulls for every service except
+     * the four Phase 16 ones (validation 400s before any service
+     * is called). The parameter order is the constructor's. */
+    
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
@@ -291,4 +293,5 @@ class Phase16ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
+   
 }

@@ -20,8 +20,10 @@ import com.sarat.dsavisualizer.service.HeapSortService;
 import com.sarat.dsavisualizer.service.HuffmanService;
 import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
+import com.sarat.dsavisualizer.service.LfuCacheService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.LruCacheService;
+import com.sarat.dsavisualizer.service.MaxFlowService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.QuickSelectService;
 import com.sarat.dsavisualizer.service.RabinKarpService;
@@ -34,6 +36,7 @@ import com.sarat.dsavisualizer.service.ShellSortService;
 import com.sarat.dsavisualizer.service.SkipListService;
 import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.StackService;
+import com.sarat.dsavisualizer.service.SudokuService;
 import com.sarat.dsavisualizer.service.SuffixArrayService;
 import com.sarat.dsavisualizer.service.TrieService;
 import com.sarat.dsavisualizer.service.UnionFindService;
@@ -46,8 +49,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Trace endpoints. Each POST returns a TraceResponse the frontend
@@ -159,6 +164,17 @@ import java.util.Map;
  * above 9. Huffman 400 when the word is missing/empty, longer
  * than 12 characters, or not lowercase a–z (the suffix-array
  * word rules).
+ * Validation rule (Phase 20): max flow 400 when graphEdges is
+ * missing/empty, there are fewer than 2 or more than 12 edges,
+ * any edge is not [from, to, capacity], any capacity is outside
+ * 1..99, any node id is outside 0..9, or start/target is
+ * missing, equal, or not a node in the graph. LFU 400 when the
+ * capacity is missing or outside 1..5, or the ops fail the LRU
+ * op rules (at least 1, at most 10 ops, "put &lt;key&gt;
+ * &lt;value&gt;" / "get &lt;key&gt;", key 0..99, value 0..999).
+ * Sudoku 400 when the grid is missing, not 9 rows of 9, any
+ * value is outside 0..9, or the givens are inconsistent (a
+ * duplicate in a row, column or 3×3 box).
  */
 @RestController
 @RequestMapping("/api")
@@ -200,6 +216,9 @@ public class VisualizationController {
     private final SkipListService skipListService;
     private final SccService sccService;
     private final HuffmanService huffmanService;
+    private final MaxFlowService maxFlowService;
+    private final LfuCacheService lfuCacheService;
+    private final SudokuService sudokuService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -235,7 +254,10 @@ public class VisualizationController {
                                    SuffixArrayService suffixArrayService,
                                    SkipListService skipListService,
                                    SccService sccService,
-                                   HuffmanService huffmanService) {
+                                   HuffmanService huffmanService,
+                                   MaxFlowService maxFlowService,
+                                   LfuCacheService lfuCacheService,
+                                   SudokuService sudokuService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -271,6 +293,9 @@ public class VisualizationController {
         this.skipListService = skipListService;
         this.sccService = sccService;
         this.huffmanService = huffmanService;
+        this.maxFlowService = maxFlowService;
+        this.lfuCacheService = lfuCacheService;
+        this.sudokuService = sudokuService;
     }
 
     @GetMapping("/health")
@@ -1231,6 +1256,41 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("Huffman Coding", steps));
     }
 
+    // ---- Max flow, LFU cache, Sudoku solver (Phase 20) ----
+
+    @PostMapping("/graph/maxflow")
+    public ResponseEntity<?> graphMaxFlow(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateMaxFlow(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = maxFlowService.maxflow(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget());
+        return ResponseEntity.ok(new TraceResponse("Max Flow", steps));
+    }
+
+    @PostMapping("/lfu/simulate")
+    public ResponseEntity<?> lfuSimulate(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLfu(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = lfuCacheService.simulate(
+                request.getCapacity(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse("LFU Cache", steps));
+    }
+
+    @PostMapping("/backtracking/sudoku")
+    public ResponseEntity<?> sudoku(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSudoku(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sudokuService.sudoku(request.getGrid());
+        return ResponseEntity.ok(new TraceResponse("Sudoku Solver", steps));
+    }
+
     // ---- Validation helpers ----
 
     /** 400 when values are missing or empty. Null means "no error". */
@@ -1867,6 +1927,77 @@ public class VisualizationController {
     }
 
     /**
+     * 400 when the grid is missing, not 9 rows of 9, any value
+     * is outside 0..9, or the givens are inconsistent (a
+     * duplicate in a row, column or 3×3 box). Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateSudoku(TraceRequest request) {
+        if (request == null || request.getGrid() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "grid must not be null"));
+        }
+        List<List<Integer>> grid = request.getGrid();
+        if (grid.size() != 9) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "grid must be 9 rows of 9"));
+        }
+        for (List<Integer> row : grid) {
+            if (row == null || row.size() != 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "grid must be 9 rows of 9"));
+            }
+            for (Integer v : row) {
+                if (v == null || v < 0 || v > 9) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "grid values must be between "
+                                            + "0 and 9"));
+                }
+            }
+        }
+        for (int i = 0; i < 9; i++) {
+            boolean[] rowSeen = new boolean[10];
+            boolean[] colSeen = new boolean[10];
+            boolean[] boxSeen = new boolean[10];
+            for (int j = 0; j < 9; j++) {
+                int rowVal = grid.get(i).get(j);
+                if (rowVal != 0) {
+                    if (rowSeen[rowVal]) {
+                        return inconsistentGivens();
+                    }
+                    rowSeen[rowVal] = true;
+                }
+                int colVal = grid.get(j).get(i);
+                if (colVal != 0) {
+                    if (colSeen[colVal]) {
+                        return inconsistentGivens();
+                    }
+                    colSeen[colVal] = true;
+                }
+                int boxVal = grid.get(3 * (i / 3) + j / 3)
+                        .get(3 * (i % 3) + j % 3);
+                if (boxVal != 0) {
+                    if (boxSeen[boxVal]) {
+                        return inconsistentGivens();
+                    }
+                    boxSeen[boxVal] = true;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** The 400 for inconsistent Sudoku givens. */
+    private ResponseEntity<?> inconsistentGivens() {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error",
+                        "givens must be consistent (no duplicate in "
+                                + "a row, column or box)"));
+    }
+
+    /**
      * 400 when graphEdges is missing/empty, any edge is not
      * [from, to] or [from, to, weight], any node id is missing,
      * below 0 or above 9 (the matrix must stay drawable — 10x10
@@ -2224,6 +2355,42 @@ public class VisualizationController {
     }
 
     /**
+     * 400 when the capacity is missing or outside 1..5, or the
+     * ops fail the LRU op rules (at least 1, at most 10 ops).
+     * The op format is identical to LRU, so validateLruOp is
+     * reused. Null means "no error".
+     */
+    private ResponseEntity<?> validateLfu(TraceRequest request) {
+        if (request == null || request.getCapacity() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "capacity must not be null"));
+        }
+        int capacity = request.getCapacity();
+        if (capacity < 1 || capacity > 5) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "capacity must be between 1 and 5"));
+        }
+        if (request.getWords() == null || request.getWords().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lfu cache needs at least one operation"));
+        }
+        if (request.getWords().size() > 10) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lfu cache needs at most 10 operations"));
+        }
+        for (String op : request.getWords()) {
+            ResponseEntity<?> error = validateLruOp(op);
+            if (error != null) {
+                return error;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 400 when values are missing/empty, longer than 12, or any
      * |value| is over 99. Null means "no error".
      */
@@ -2320,6 +2487,73 @@ public class VisualizationController {
         if (request.getValue() == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "value must not be null"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, there are fewer than
+     * 2 or more than 12 edges, any edge is not
+     * [from, to, capacity], any capacity is outside 1..99, any
+     * node id is outside 0..9, or start/target is missing,
+     * equal, or not a node in the graph. The 2..12 edge cap is
+     * the SCC cap. Null means "no error".
+     */
+    private ResponseEntity<?> validateMaxFlow(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        if (request.getGraphEdges().size() < 2
+                || request.getGraphEdges().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "max flow needs between 2 and 12 edges"));
+        }
+        Set<Integer> nodes = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() != 3) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be "
+                                        + "[from, to, capacity]"));
+            }
+            Integer u = edge.get(0);
+            Integer v = edge.get(1);
+            Integer c = edge.get(2);
+            if (u == null || v == null || u < 0 || u > 9
+                    || v < 0 || v > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "max flow node ids must be between "
+                                        + "0 and 9"));
+            }
+            if (c == null || c < 1 || c > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "max flow capacity must be between "
+                                        + "1 and 99"));
+            }
+            nodes.add(u);
+            nodes.add(v);
+        }
+        if (request.getStart() == null || request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start and target must not be null"));
+        }
+        if (request.getStart().equals(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "source and sink must be different"));
+        }
+        if (!nodes.contains(request.getStart())
+                || !nodes.contains(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start and target must be nodes in the "
+                                    + "graph"));
         }
         return null;
     }
