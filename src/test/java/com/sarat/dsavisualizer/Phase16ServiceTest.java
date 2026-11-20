@@ -73,7 +73,8 @@ class Phase16ServiceTest {
         return request;
     }
 
- 
+
+
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());

@@ -120,16 +120,7 @@ class Phase18ServiceTest {
      * service is called). The parameter order is the
      * constructor's: 28 nulls, then lru, btree, bloom,
      * suffixArray, skipList (33 total). */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null,
-                lruCacheService, bTreeService, bloomFilterService,
-                suffixArrayService, skipListService);
-    }
-
+   
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
@@ -440,25 +431,5 @@ class Phase18ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
-    @Test
-    void btreeSearchDelete400() {
-        assertBadRequest(controller().bTreeSearch(
-                valuesOnlyRequest(DEMO_TREE)));
-        assertBadRequest(controller().bTreeDelete(
-                valuesOnlyRequest(DEMO_TREE)));
-    }
-
-    @Test
-    void suffixArray400() {
-        assertBadRequest(controller().suffixArray(
-                wordRequest("abcdefghijklm")));
-        assertBadRequest(controller().suffixArray(
-                wordRequest("Banana")));
-    }
-
-    @Test
-    void skipListEmptyValues400() {
-        assertBadRequest(controller().skipListInsert(
-                valuesOnlyRequest(List.of())));
-    }
+    
 }

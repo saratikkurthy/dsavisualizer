@@ -303,7 +303,8 @@ class Phase12ServiceTest {
 
     // ---- Edit-distance tests ----
 
-   
+    
+
     // ---- LPS tests ----
 
     /** True when sub is a subsequence of s (in order, not necessarily contiguous). */
