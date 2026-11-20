@@ -5,8 +5,10 @@ import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BacktrackingService;
+import com.sarat.dsavisualizer.service.BloomFilterService;
 import com.sarat.dsavisualizer.service.BoyerMooreService;
 import com.sarat.dsavisualizer.service.BstService;
+import com.sarat.dsavisualizer.service.BTreeService;
 import com.sarat.dsavisualizer.service.BucketSortService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
@@ -18,6 +20,7 @@ import com.sarat.dsavisualizer.service.HeapSortService;
 import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
+import com.sarat.dsavisualizer.service.LruCacheService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.QuickSelectService;
 import com.sarat.dsavisualizer.service.RabinKarpService;
@@ -26,8 +29,10 @@ import com.sarat.dsavisualizer.service.RedBlackService;
 import com.sarat.dsavisualizer.service.SearchService;
 import com.sarat.dsavisualizer.service.SegmentTreeService;
 import com.sarat.dsavisualizer.service.ShellSortService;
+import com.sarat.dsavisualizer.service.SkipListService;
 import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.StackService;
+import com.sarat.dsavisualizer.service.SuffixArrayService;
 import com.sarat.dsavisualizer.service.TrieService;
 import com.sarat.dsavisualizer.service.UnionFindService;
 import com.sarat.dsavisualizer.service.ZAlgorithmService;
@@ -127,6 +132,22 @@ import java.util.Map;
  * outside -99..99, or 0. QuickSelect 400 when values are
  * missing/empty, shorter than 2 or longer than 10, any |value| is
  * over 999, or k (value) is missing or outside 1..n.
+ * Validation rule (Phase 17): LRU 400 when the capacity is
+ * missing or outside 1..5, words is missing/empty or longer than
+ * 10, or any op fails to parse as "put &lt;key&gt; &lt;value&gt;"
+ * or "get &lt;key&gt;" with a key in 0..99 and a value in 0..999.
+ * B-tree 400 when values are missing/empty, longer than 12, or
+ * any |value| is over 99. Bloom filter 400 when words is
+ * missing/empty or longer than 6, any word is empty or longer
+ * than 12 characters, or the word to check is missing/empty or
+ * longer than 12 characters.
+ * Validation rule (Phase 18): B-tree search 400 when values are
+ * bad (the B-tree rules) or the target is missing; B-tree delete
+ * 400 when values are bad (the B-tree rules) or the value is
+ * missing. Suffix array 400 when the word is missing/empty,
+ * longer than 12 characters, or not lowercase a–z. Skip list
+ * 400 when values are missing/empty, longer than 8, or any
+ * |value| is over 99.
  */
 @RestController
 @RequestMapping("/api")
@@ -161,6 +182,11 @@ public class VisualizationController {
     private final ZAlgorithmService zAlgorithmService;
     private final FenwickTreeService fenwickTreeService;
     private final QuickSelectService quickSelectService;
+    private final LruCacheService lruCacheService;
+    private final BTreeService bTreeService;
+    private final BloomFilterService bloomFilterService;
+    private final SuffixArrayService suffixArrayService;
+    private final SkipListService skipListService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -189,7 +215,12 @@ public class VisualizationController {
                                    BoyerMooreService boyerMooreService,
                                    ZAlgorithmService zAlgorithmService,
                                    FenwickTreeService fenwickTreeService,
-                                   QuickSelectService quickSelectService) {
+                                   QuickSelectService quickSelectService,
+                                   LruCacheService lruCacheService,
+                                   BTreeService bTreeService,
+                                   BloomFilterService bloomFilterService,
+                                   SuffixArrayService suffixArrayService,
+                                   SkipListService skipListService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -218,6 +249,11 @@ public class VisualizationController {
         this.zAlgorithmService = zAlgorithmService;
         this.fenwickTreeService = fenwickTreeService;
         this.quickSelectService = quickSelectService;
+        this.lruCacheService = lruCacheService;
+        this.bTreeService = bTreeService;
+        this.bloomFilterService = bloomFilterService;
+        this.suffixArrayService = suffixArrayService;
+        this.skipListService = skipListService;
     }
 
     @GetMapping("/health")
@@ -1061,6 +1097,86 @@ public class VisualizationController {
         List<Step> steps = trieService.delete(
                 request.getWords(), request.getWord());
         return ResponseEntity.ok(new TraceResponse("Trie Delete", steps));
+    }
+
+    // ---- LRU cache / B-tree / Bloom filter (Phase 17) ----
+
+    @PostMapping("/lru/simulate")
+    public ResponseEntity<?> lruSimulate(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLru(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = lruCacheService.simulate(
+                request.getCapacity(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse("LRU Cache", steps));
+    }
+
+    @PostMapping("/btree/insert")
+    public ResponseEntity<?> bTreeInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBTree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bTreeService.insert(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("B-Tree", steps));
+    }
+
+    @PostMapping("/hash/bloom")
+    public ResponseEntity<?> bloomFilter(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBloom(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bloomFilterService.bloom(
+                request.getWords(), request.getWord());
+        return ResponseEntity.ok(
+                new TraceResponse("Bloom Filter", steps));
+    }
+
+    // ---- B-tree search/delete, suffix array, skip list (Phase 18) ----
+
+    @PostMapping("/btree/search")
+    public ResponseEntity<?> bTreeSearch(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBTreeSearch(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bTreeService.search(
+                request.getValues(), request.getTarget());
+        return ResponseEntity.ok(new TraceResponse("B-Tree Search", steps));
+    }
+
+    @PostMapping("/btree/delete")
+    public ResponseEntity<?> bTreeDelete(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBTreeDelete(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bTreeService.delete(
+                request.getValues(), request.getValue());
+        return ResponseEntity.ok(new TraceResponse("B-Tree Delete", steps));
+    }
+
+    @PostMapping("/string/suffixarray")
+    public ResponseEntity<?> suffixArray(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSuffixArray(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = suffixArrayService.suffixArray(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse("Suffix Array", steps));
+    }
+
+    @PostMapping("/skiplist/insert")
+    public ResponseEntity<?> skipListInsert(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSkipList(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = skipListService.insert(request.getValues());
+        return ResponseEntity.ok(new TraceResponse("Skip List", steps));
     }
 
     // ---- Validation helpers ----
@@ -1967,8 +2083,242 @@ public class VisualizationController {
         return null;
     }
 
+    /**
+     * 400 when the capacity is missing or outside 1..5, words is
+     * missing/empty or longer than 10, or any op fails to parse
+     * as "put &lt;key&gt; &lt;value&gt;" or "get &lt;key&gt;" with
+     * a key in 0..99 and a value in 0..999. Null means "no error".
+     */
+    private ResponseEntity<?> validateLru(TraceRequest request) {
+        if (request == null || request.getCapacity() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "capacity must not be null"));
+        }
+        int capacity = request.getCapacity();
+        if (capacity < 1 || capacity > 5) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "capacity must be between 1 and 5"));
+        }
+        if (request.getWords() == null || request.getWords().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lru cache needs at least one operation"));
+        }
+        if (request.getWords().size() > 10) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lru cache needs at most 10 operations"));
+        }
+        for (String op : request.getWords()) {
+            ResponseEntity<?> error = validateLruOp(op);
+            if (error != null) {
+                return error;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when one op is not "put &lt;key&gt; &lt;value&gt;" or
+     * "get &lt;key&gt;" with a key in 0..99 and a value in 0..999.
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateLruOp(String op) {
+        String[] parts = op == null ? new String[0]
+                : op.trim().split("\\s+");
+        if (parts.length == 3 && "put".equals(parts[0])) {
+            try {
+                int key = Integer.parseInt(parts[1]);
+                int value = Integer.parseInt(parts[2]);
+                if (key < 0 || key > 99) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "key must be between 0 and 99"));
+                }
+                if (value < 0 || value > 999) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "value must be between 0 and 999"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Op must be 'put <key> <value>' or "
+                                        + "'get <key>'."));
+            }
+            return null;
+        }
+        if (parts.length == 2 && "get".equals(parts[0])) {
+            try {
+                int key = Integer.parseInt(parts[1]);
+                if (key < 0 || key > 99) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "key must be between 0 and 99"));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Op must be 'put <key> <value>' or "
+                                        + "'get <key>'."));
+            }
+            return null;
+        }
+        return ResponseEntity.badRequest()
+                .body(Map.of("error",
+                        "Op must be 'put <key> <value>' or "
+                                + "'get <key>'."));
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 12, or any
+     * |value| is over 99. Null means "no error".
+     */
+    private ResponseEntity<?> validateBTree(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "b-tree needs at most 12 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "b-tree needs |values| <= 99"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when words is missing/empty or longer than 6, any word
+     * is empty or longer than 12 characters, or the word to check
+     * is missing/empty or longer than 12 characters. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateBloom(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bloom filter needs words to insert"));
+        }
+        if (request.getWords().size() > 6) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bloom filter needs at most 6 words"));
+        }
+        for (String word : request.getWords()) {
+            if (word == null || word.isEmpty()
+                    || word.length() > 12) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "words must be 1 to 12 characters"));
+            }
+        }
+        if (request.getWord() == null || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the word to check must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the word to check must be at most 12 "
+                                    + "characters"));
+        }
+        return null;
+    }
+
     /** Null-safe values accessor (null request or null values → null). */
     private List<Integer> valuesOf(TraceRequest request) {
         return request == null ? null : request.getValues();
+    }
+
+    /**
+     * 400 when values are bad (the B-tree rules) or the target is
+     * missing. Null means "no error".
+     */
+    private ResponseEntity<?> validateBTreeSearch(TraceRequest request) {
+        ResponseEntity<?> error = validateBTree(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "target must not be null"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are bad (the B-tree rules) or the value is
+     * missing. Null means "no error".
+     */
+    private ResponseEntity<?> validateBTreeDelete(TraceRequest request) {
+        ResponseEntity<?> error = validateBTree(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValue() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "value must not be null"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing/empty, longer than 12
+     * characters, or not lowercase a–z. Null means "no error".
+     */
+    private ResponseEntity<?> validateSuffixArray(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "suffix array needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "suffix array needs lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 8, or any
+     * |value| is over 99. Null means "no error".
+     */
+    private ResponseEntity<?> validateSkipList(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "skip list needs at most 8 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "skip list needs |values| <= 99"));
+            }
+        }
+        return null;
     }
 }

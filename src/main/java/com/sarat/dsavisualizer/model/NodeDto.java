@@ -1,5 +1,7 @@
 package com.sarat.dsavisualizer.model;
 
+import java.util.List;
+
 /**
  * One node of a binary search tree, as sent to the frontend.
  * {@code x} and {@code y} are the screen coordinates the backend
@@ -14,6 +16,10 @@ package com.sarat.dsavisualizer.model;
  * other node (BST/AVL leave it null and the frontend renders the
  * default node colour).
  *
+ * {@code keys} is the key list for B-tree nodes (Phase 17): the
+ * frontend shows {@code keys} when present, else {@code value}.
+ * Null for every other node.
+ *
  * Jackson-friendly POJO: no-arg constructor plus getters/setters.
  */
 public class NodeDto {
@@ -24,6 +30,7 @@ public class NodeDto {
     private double y;
     private String label;
     private String color;
+    private List<Integer> keys;
 
     /** No-arg constructor for Jackson. */
     public NodeDto() {
@@ -32,6 +39,16 @@ public class NodeDto {
     public NodeDto(int id, int value, double x, double y) {
         this.id = id;
         this.value = value;
+        this.x = x;
+        this.y = y;
+        this.label = null;
+        this.color = null;
+        this.keys = null;
+    }
+
+    public NodeDto(int id, List<Integer> keys, double x, double y) {
+        this.id = id;
+        this.keys = keys;
         this.x = x;
         this.y = y;
         this.label = null;
@@ -84,5 +101,13 @@ public class NodeDto {
 
     public void setColor(String color) {
         this.color = color;
+    }
+
+    public List<Integer> getKeys() {
+        return keys;
+    }
+
+    public void setKeys(List<Integer> keys) {
+        this.keys = keys;
     }
 }
