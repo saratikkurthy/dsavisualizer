@@ -42,6 +42,14 @@ import java.util.Map;
  * fenwick/build, fenwick/prefix, fenwick/update,
  * string/boyermoore and string/zalgorithm).</p>
  *
+ * <p>Updated for Phase 17 (2026-11-19): the endpoint list now covers
+ * all 68 POST trace endpoints (Phase 17's lru/simulate,
+ * btree/insert and hash/bloom).</p>
+ *
+ * <p>Updated for Phase 18 (2026-11-19): the endpoint list now covers
+ * all 72 POST trace endpoints (Phase 18's btree/search,
+ * btree/delete, string/suffixarray and skiplist/insert).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -83,6 +91,11 @@ public class HomeController {
                         "POST /api/heap/extract-min",
                         "POST /api/hash/insert",
                         "POST /api/hash/search",
+                        "POST /api/hash/bloom",
+                        "POST /api/lru/simulate",
+                        "POST /api/btree/insert",
+                        "POST /api/btree/search",
+                        "POST /api/btree/delete",
                         "POST /api/graph/bfs",
                         "POST /api/graph/dfs",
                         "POST /api/graph/dijkstra",
@@ -120,7 +133,9 @@ public class HomeController {
                         "POST /api/string/rabinkarp",
                         "POST /api/string/boyermoore",
                         "POST /api/string/zalgorithm",
-                        "POST /api/backtracking/nqueens"
+                        "POST /api/string/suffixarray",
+                        "POST /api/backtracking/nqueens",
+                        "POST /api/skiplist/insert"
                 )
         );
     }

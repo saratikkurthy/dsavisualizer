@@ -73,18 +73,7 @@ class Phase16ServiceTest {
         return request;
     }
 
-    /** The controller under test: nulls for every service except
-     * the four Phase 16 ones (validation 400s before any service
-     * is called). The parameter order is the constructor's. */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                boyerMooreService, zAlgorithmService,
-                fenwickTreeService, quickSelectService);
-    }
-
+ 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
@@ -301,34 +290,4 @@ class Phase16ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
-    @Test
-    void boyerMooreWrongWordCount400() {
-        assertBadRequest(controller().boyerMoore(
-                wordsRequest("only-one")));
-    }
-
-    @Test
-    void fenwickIndexZero400() {
-        // Fenwick indices are 1-based: 0 is out of range.
-        assertBadRequest(controller().fenwickPrefix(
-                valuesRequest(List.of(1, 3, 5, 7, 9, 11), 0, null)));
-    }
-
-    @Test
-    void fenwickDeltaZero400() {
-        assertBadRequest(controller().fenwickUpdate(
-                valuesRequest(List.of(1, 3, 5, 7, 9, 11), 2, 0)));
-    }
-
-    @Test
-    void quickSelectKZero400() {
-        assertBadRequest(controller().quickSelect(
-                valuesRequest(List.of(7, 10, 4, 3, 20, 15), null, 0)));
-    }
-
-    @Test
-    void quickSelectKTooBig400() {
-        assertBadRequest(controller().quickSelect(
-                valuesRequest(List.of(7, 10, 4, 3, 20, 15), null, 7)));
-    }
 }

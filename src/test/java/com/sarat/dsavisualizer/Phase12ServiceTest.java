@@ -301,8 +301,9 @@ class Phase12ServiceTest {
         assertEquals(0, countState(steps, 5));
     }
 
+    // ---- Edit-distance tests ----
 
-
+   
     // ---- LPS tests ----
 
     /** True when sub is a subsequence of s (in order, not necessarily contiguous). */
