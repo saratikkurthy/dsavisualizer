@@ -62,6 +62,10 @@ import java.util.Map;
  * all 81 POST trace endpoints (Phase 21's string/ahocorasick,
  * graph/bridges and string/manacher).</p>
  *
+ * <p>Updated for Phase 22 (2026-11-20): the endpoint list now covers
+ * all 84 POST trace endpoints (Phase 22's graph/bidijkstra,
+ * graph/ch and geo/geohash — the Google Maps algorithms).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -123,6 +127,9 @@ public class HomeController {
                         "POST /api/graph/scc",
                         "POST /api/graph/maxflow",
                         "POST /api/graph/bridges",
+                        "POST /api/graph/bidijkstra",
+                        "POST /api/graph/ch",
+                        "POST /api/geo/geohash",
                         "POST /api/dp/knapsack",
                         "POST /api/dp/lcs",
                         "POST /api/dp/coinchange",
