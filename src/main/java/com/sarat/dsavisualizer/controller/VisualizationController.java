@@ -17,6 +17,7 @@ import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.HeapSortService;
+import com.sarat.dsavisualizer.service.HuffmanService;
 import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LinkedListService;
@@ -26,6 +27,7 @@ import com.sarat.dsavisualizer.service.QuickSelectService;
 import com.sarat.dsavisualizer.service.RabinKarpService;
 import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.RedBlackService;
+import com.sarat.dsavisualizer.service.SccService;
 import com.sarat.dsavisualizer.service.SearchService;
 import com.sarat.dsavisualizer.service.SegmentTreeService;
 import com.sarat.dsavisualizer.service.ShellSortService;
@@ -148,6 +150,15 @@ import java.util.Map;
  * longer than 12 characters, or not lowercase a–z. Skip list
  * 400 when values are missing/empty, longer than 8, or any
  * |value| is over 99.
+ * Validation rule (Phase 19): probing 400 when values are
+ * missing/empty, longer than 8, or any |value| is over 99, or
+ * the mode (word) is not linear, quadratic or double. SCC 400
+ * when graphEdges is missing/empty, there are fewer than 2 or
+ * more than 12 edges, any edge is not [from, to] or
+ * [from, to, weight], or any node id is missing, below 0 or
+ * above 9. Huffman 400 when the word is missing/empty, longer
+ * than 12 characters, or not lowercase a–z (the suffix-array
+ * word rules).
  */
 @RestController
 @RequestMapping("/api")
@@ -187,6 +198,8 @@ public class VisualizationController {
     private final BloomFilterService bloomFilterService;
     private final SuffixArrayService suffixArrayService;
     private final SkipListService skipListService;
+    private final SccService sccService;
+    private final HuffmanService huffmanService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -220,7 +233,9 @@ public class VisualizationController {
                                    BTreeService bTreeService,
                                    BloomFilterService bloomFilterService,
                                    SuffixArrayService suffixArrayService,
-                                   SkipListService skipListService) {
+                                   SkipListService skipListService,
+                                   SccService sccService,
+                                   HuffmanService huffmanService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -254,6 +269,8 @@ public class VisualizationController {
         this.bloomFilterService = bloomFilterService;
         this.suffixArrayService = suffixArrayService;
         this.skipListService = skipListService;
+        this.sccService = sccService;
+        this.huffmanService = huffmanService;
     }
 
     @GetMapping("/health")
@@ -1177,6 +1194,41 @@ public class VisualizationController {
         }
         List<Step> steps = skipListService.insert(request.getValues());
         return ResponseEntity.ok(new TraceResponse("Skip List", steps));
+    }
+
+    // ---- Open addressing, Kosaraju SCC, Huffman coding (Phase 19) ----
+
+    @PostMapping("/hash/probing")
+    public ResponseEntity<?> hashProbing(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateProbing(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = hashTableService.probing(
+                request.getValues(), request.getWord());
+        return ResponseEntity.ok(
+                new TraceResponse("Open Addressing", steps));
+    }
+
+    @PostMapping("/graph/scc")
+    public ResponseEntity<?> graphScc(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateScc(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sccService.scc(request.getGraphEdges());
+        return ResponseEntity.ok(new TraceResponse(
+                "Strongly Connected Components", steps));
+    }
+
+    @PostMapping("/string/huffman")
+    public ResponseEntity<?> huffman(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateHuffman(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = huffmanService.huffman(request.getWord());
+        return ResponseEntity.ok(new TraceResponse("Huffman Coding", steps));
     }
 
     // ---- Validation helpers ----
@@ -2317,6 +2369,101 @@ public class VisualizationController {
                 return ResponseEntity.badRequest()
                         .body(Map.of("error",
                                 "skip list needs |values| <= 99"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when values are missing/empty, longer than 8, any
+     * |value| is over 99, or the mode (word) is not linear,
+     * quadratic or double. Null means "no error".
+     */
+    private ResponseEntity<?> validateProbing(TraceRequest request) {
+        ResponseEntity<?> error = validateValues(request);
+        if (error != null) {
+            return error;
+        }
+        if (request.getValues().size() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "probing needs at most 8 values"));
+        }
+        for (int v : request.getValues()) {
+            if (Math.abs(v) > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "probing needs |values| <= 99"));
+            }
+        }
+        String mode = request.getWord();
+        if (mode == null || (!mode.equals("linear")
+                && !mode.equals("quadratic") && !mode.equals("double"))) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "probing mode must be linear, quadratic "
+                                    + "or double"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, there are fewer than
+     * 2 or more than 12 edges, any edge is not [from, to] or
+     * [from, to, weight], or any node id is missing, below 0 or
+     * above 9. Null means "no error".
+     */
+    private ResponseEntity<?> validateScc(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        if (request.getGraphEdges().size() < 2
+                || request.getGraphEdges().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "SCC needs between 2 and 12 edges"));
+        }
+        for (List<Integer> pair : request.getGraphEdges()) {
+            if (pair == null || (pair.size() != 2 && pair.size() != 3)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be [from, to]"));
+            }
+            Integer u = pair.get(0);
+            Integer v = pair.get(1);
+            if (u == null || v == null || u < 0 || u > 9
+                    || v < 0 || v > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "SCC node ids must be between 0 and 9"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing/empty, longer than 12
+     * characters, or not lowercase a–z. Null means "no error".
+     */
+    private ResponseEntity<?> validateHuffman(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "huffman needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "huffman needs lowercase a-z only"));
             }
         }
         return null;

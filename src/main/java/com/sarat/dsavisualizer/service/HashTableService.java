@@ -8,6 +8,9 @@ import java.util.List;
 
 /**
  * Hash table with linear probing that records each probe as a Step.
+ * Phase 19 adds open addressing with a selectable probe rule
+ * (linear / quadratic / double hashing) over a fixed 11-slot
+ * table — see {@link #probing(List, String)}.
  *
  * Fixed hash function h(v) = Math.floorMod(v, capacity); collisions
  * resolve by linear probing. Default capacity 11. {@code data} is
@@ -149,6 +152,80 @@ public class HashTableService {
         steps.add(tableStep(table, List.of(), List.of(),
                 target + " is not in the table.", LINE_FINAL));
         return steps;
+    }
+
+    /**
+     * Open addressing (Phase 19): insert {@code values} into a
+     * fixed 11-slot table with the given probe rule ({@code mode}
+     * is "linear", "quadratic" or "double", validated by the
+     * controller). h(k) = floorMod(k, 11); double hashing uses
+     * h2(k) = 7 - floorMod(k, 7). Probes: linear h+i, quadratic
+     * h+i^2, double h+i*h2, all mod 11. One Step per probe
+     * (line 2), then a final Step (line 0). {@code data} is the
+     * table copy (null = empty slot); {@code highlight} is the
+     * slot just probed. A key already in the table is skipped
+     * silently with no step and no probe counted (the B-tree /
+     * skip-list precedent for bulk inserts).
+     */
+    public List<Step> probing(List<Integer> values, String mode) {
+        List<Step> steps = new ArrayList<>();
+        List<Integer> table = new ArrayList<>();
+        for (int i = 0; i < DEFAULT_CAPACITY; i++) {
+            table.add(null);
+        }
+        if (values == null || values.isEmpty() || mode == null) {
+            steps.add(tableStep(table, List.of(), List.of(),
+                    "Open addressing (" + mode + "): 0 keys placed in "
+                            + "0 probes.",
+                    LINE_FINAL));
+            return steps;
+        }
+        int probes = 0;
+        int placed = 0;
+        for (int k : values) {
+            if (table.contains(k)) {
+                continue; // duplicate — skipped silently
+            }
+            int h = Math.floorMod(k, DEFAULT_CAPACITY);
+            int h2 = 7 - Math.floorMod(k, 7);
+            for (int i = 0; i < DEFAULT_CAPACITY; i++) {
+                int slot = probeSlot(h, h2, i, mode);
+                probes++;
+                Integer current = table.get(slot);
+                if (current == null) {
+                    table.set(slot, k);
+                    placed++;
+                    steps.add(tableStep(table, List.of(slot), List.of(),
+                            "Insert " + k + ": h(" + k + ") = " + k
+                                    + " % 11 = " + h + ". Slot " + slot
+                                    + " is empty — placed.",
+                            LINE_COMPARE));
+                    break;
+                }
+                steps.add(tableStep(table, List.of(slot), List.of(),
+                        "Insert " + k + ": slot " + slot + " holds "
+                                + current + " — collision, probe "
+                                + (i + 1) + " → slot "
+                                + probeSlot(h, h2, i + 1, mode) + ".",
+                        LINE_COMPARE));
+            }
+        }
+        steps.add(tableStep(table, List.of(), List.of(),
+                "Open addressing (" + mode + "): " + placed
+                        + " keys placed in " + probes + " probes.",
+                LINE_FINAL));
+        return steps;
+    }
+
+    /** The slot for probe {@code i} (0-based) under the given rule. */
+    private int probeSlot(int h, int h2, int i, String mode) {
+        if ("quadratic".equals(mode)) {
+            return Math.floorMod(h + i * i, DEFAULT_CAPACITY);
+        }
+        if ("double".equals(mode)) {
+            return Math.floorMod(h + i * h2, DEFAULT_CAPACITY);
+        }
+        return Math.floorMod(h + i, DEFAULT_CAPACITY);
     }
 
     /** One hash-table Step: table copy in data, bucket indexes in highlight. */

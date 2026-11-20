@@ -50,6 +50,10 @@ import java.util.Map;
  * all 72 POST trace endpoints (Phase 18's btree/search,
  * btree/delete, string/suffixarray and skiplist/insert).</p>
  *
+ * <p>Updated for Phase 19 (2026-11-20): the endpoint list now covers
+ * all 75 POST trace endpoints (Phase 19's hash/probing,
+ * graph/scc and string/huffman).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -92,6 +96,7 @@ public class HomeController {
                         "POST /api/hash/insert",
                         "POST /api/hash/search",
                         "POST /api/hash/bloom",
+                        "POST /api/hash/probing",
                         "POST /api/lru/simulate",
                         "POST /api/btree/insert",
                         "POST /api/btree/search",
@@ -106,6 +111,7 @@ public class HomeController {
                         "POST /api/graph/astar",
                         "POST /api/graph/astarweighted",
                         "POST /api/graph/floydwarshall",
+                        "POST /api/graph/scc",
                         "POST /api/dp/knapsack",
                         "POST /api/dp/lcs",
                         "POST /api/dp/coinchange",
@@ -134,6 +140,7 @@ public class HomeController {
                         "POST /api/string/boyermoore",
                         "POST /api/string/zalgorithm",
                         "POST /api/string/suffixarray",
+                        "POST /api/string/huffman",
                         "POST /api/backtracking/nqueens",
                         "POST /api/skiplist/insert"
                 )
