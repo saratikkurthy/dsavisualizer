@@ -6,15 +6,18 @@ import com.sarat.dsavisualizer.model.TraceResponse;
 import com.sarat.dsavisualizer.service.AhoCorasickService;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BacktrackingService;
+import com.sarat.dsavisualizer.service.BidirectionalDijkstraService;
 import com.sarat.dsavisualizer.service.BloomFilterService;
 import com.sarat.dsavisualizer.service.BoyerMooreService;
 import com.sarat.dsavisualizer.service.BridgesService;
 import com.sarat.dsavisualizer.service.BstService;
 import com.sarat.dsavisualizer.service.BTreeService;
 import com.sarat.dsavisualizer.service.BucketSortService;
+import com.sarat.dsavisualizer.service.ContractionHierarchiesService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
 import com.sarat.dsavisualizer.service.FenwickTreeService;
+import com.sarat.dsavisualizer.service.GeohashService;
 import com.sarat.dsavisualizer.service.GraphService;
 import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
@@ -188,6 +191,16 @@ import java.util.Set;
  * is not a node in the graph (a missing start defaults to the
  * smallest node). Manacher 400 when the word is missing/empty,
  * longer than 20 characters, or not lowercase a–z.
+ * Validation rule (Phase 22): bidirectional Dijkstra 400 when
+ * graphEdges/start is missing or any weight is &lt;= 0, or the
+ * target is missing, start == target, or start/target is not
+ * a node in the graph. Contraction hierarchies adds: a given
+ * contraction order (values) that is not a permutation of the
+ * graph's nodes 400s (a missing order defaults to ascending
+ * node id). Geohash 400 when the word is missing or not a
+ * "lat,lon" pair, lat is outside [-90, 90], lon is outside
+ * [-180, 180], or the precision (index) is outside 1..12
+ * (a missing precision defaults to 6).
  */
 @RestController
 @RequestMapping("/api")
@@ -235,6 +248,9 @@ public class VisualizationController {
     private final AhoCorasickService ahoCorasickService;
     private final BridgesService bridgesService;
     private final ManacherService manacherService;
+    private final BidirectionalDijkstraService bidijkstraService;
+    private final ContractionHierarchiesService chService;
+    private final GeohashService geohashService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -276,7 +292,10 @@ public class VisualizationController {
                                    SudokuService sudokuService,
                                    AhoCorasickService ahoCorasickService,
                                    BridgesService bridgesService,
-                                   ManacherService manacherService) {
+                                   ManacherService manacherService,
+                                   BidirectionalDijkstraService bidijkstraService,
+                                   ContractionHierarchiesService chService,
+                                   GeohashService geohashService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -318,6 +337,9 @@ public class VisualizationController {
         this.ahoCorasickService = ahoCorasickService;
         this.bridgesService = bridgesService;
         this.manacherService = manacherService;
+        this.bidijkstraService = bidijkstraService;
+        this.chService = chService;
+        this.geohashService = geohashService;
     }
 
     @GetMapping("/health")
@@ -1347,6 +1369,46 @@ public class VisualizationController {
         List<Step> steps = manacherService.manacher(request.getWord());
         return ResponseEntity.ok(
                 new TraceResponse("Manacher's Algorithm", steps));
+    }
+
+    // ---- Bidirectional Dijkstra, contraction hierarchies, geohash (Phase 22) ----
+
+    @PostMapping("/graph/bidijkstra")
+    public ResponseEntity<?> graphBidijkstra(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBidirectionalDijkstra(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bidijkstraService.bidijkstra(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget());
+        return ResponseEntity.ok(new TraceResponse(
+                "Bidirectional Dijkstra", steps));
+    }
+
+    @PostMapping("/graph/ch")
+    public ResponseEntity<?> graphCh(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateContractionHierarchies(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = chService.contractionHierarchies(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Contraction Hierarchies", steps));
+    }
+
+    @PostMapping("/geo/geohash")
+    public ResponseEntity<?> geohash(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateGeohash(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = geohashService.geohash(
+                request.getWord(), request.getIndex());
+        return ResponseEntity.ok(new TraceResponse("Geohash", steps));
     }
 
     // ---- Validation helpers ----
@@ -2739,6 +2801,167 @@ public class VisualizationController {
                         .body(Map.of("error",
                                 "manacher needs lowercase a-z only"));
             }
+        }
+        return null;
+    }
+
+    /** The node ids appearing in graphEdges (well-formed pairs only). */
+    private Set<Integer> graphNodes(TraceRequest request) {
+        Set<Integer> nodes = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || (edge.size() != 2 && edge.size() != 3)) {
+                continue;
+            }
+            if (edge.get(0) != null) {
+                nodes.add(edge.get(0));
+            }
+            if (edge.get(1) != null) {
+                nodes.add(edge.get(1));
+            }
+        }
+        return nodes;
+    }
+
+    /**
+     * 400 when graphEdges/start is missing or any weight is
+     * &lt;= 0, or the target is missing, start == target, or
+     * start/target is not a node in the graph. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateBidirectionalDijkstra(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateGraph(request);
+        if (error != null) {
+            return error;
+        }
+        error = validateWeights(request, "Bidirectional Dijkstra");
+        if (error != null) {
+            return error;
+        }
+        return validateTargetNodes(request);
+    }
+
+    /**
+     * 400 when the target is missing, start == target, or
+     * start/target is not a node in the graph. (The graph and
+     * weight checks happen in the caller.) Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateTargetNodes(TraceRequest request) {
+        if (request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "target must not be null"));
+        }
+        if (request.getStart().equals(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start and target must be different"));
+        }
+        Set<Integer> nodes = graphNodes(request);
+        if (!nodes.contains(request.getStart())
+                || !nodes.contains(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start and target must be nodes in the "
+                                    + "graph"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges/start is missing or any weight is
+     * &lt;= 0, the target is missing, start == target,
+     * start/target is not a node in the graph, or a given
+     * contraction order (values) is not a permutation of the
+     * graph's nodes (a missing order defaults to ascending
+     * node id). Null means "no error".
+     */
+    private ResponseEntity<?> validateContractionHierarchies(
+            TraceRequest request) {
+        ResponseEntity<?> error = validateGraph(request);
+        if (error != null) {
+            return error;
+        }
+        error = validateWeights(request, "Contraction Hierarchies");
+        if (error != null) {
+            return error;
+        }
+        error = validateTargetNodes(request);
+        if (error != null) {
+            return error;
+        }
+        List<Integer> order = request.getValues();
+        if (order != null) {
+            Set<Integer> nodes = graphNodes(request);
+            if (order.size() != nodes.size()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "contraction order must be a "
+                                        + "permutation of the graph's "
+                                        + "nodes"));
+            }
+            Set<Integer> seen = new HashSet<>();
+            for (Integer node : order) {
+                if (node == null || !seen.add(node)) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "contraction order must be a "
+                                            + "permutation of the graph's "
+                                            + "nodes"));
+                }
+            }
+            if (!seen.equals(nodes)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "contraction order must be a "
+                                        + "permutation of the graph's "
+                                        + "nodes"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "lat,lon" pair,
+     * lat is outside [-90, 90], lon is outside [-180, 180],
+     * or the precision (index) is outside 1..12 (a missing
+     * precision defaults to 6). Null means "no error".
+     */
+    private ResponseEntity<?> validateGeohash(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        String[] parts = request.getWord().split(",", -1);
+        if (parts.length != 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "geohash needs a \"lat,lon\" pair"));
+        }
+        double lat;
+        double lon;
+        try {
+            lat = Double.parseDouble(parts[0].trim());
+            lon = Double.parseDouble(parts[1].trim());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "geohash needs a \"lat,lon\" pair"));
+        }
+        if (!Double.isFinite(lat) || !Double.isFinite(lon)
+                || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "geohash needs latitude between -90 and 90 "
+                                    + "and longitude between -180 and "
+                                    + "180"));
+        }
+        Integer precision = request.getIndex();
+        if (precision != null && (precision < 1 || precision > 12)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "geohash needs a precision between 1 and 12"));
         }
         return null;
     }

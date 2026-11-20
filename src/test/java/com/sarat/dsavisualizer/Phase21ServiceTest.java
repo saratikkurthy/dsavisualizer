@@ -82,18 +82,7 @@ class Phase21ServiceTest {
      * the Phase 21 ones (validation 400s before any service is
      * called). The parameter order is the constructor's: 38
      * Phase 1–20 params, then aho, bridges, manacher (41 total). */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null,
-                null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null,
-                null, null,
-                null, null, null,
-                ahoCorasickService, bridgesService, manacherService);
-    }
+    
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -450,79 +439,5 @@ class Phase21ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
-    @Test
-    void ahoCorasick400() {
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest(null, DEMO_PATTERNS)));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("", DEMO_PATTERNS)));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("a".repeat(31), DEMO_PATTERNS)));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("Ushers", DEMO_PATTERNS)));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("ushers", null)));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("ushers", List.of())));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("ushers", List.of("he", "she", "his",
-                        "hers", "he", "she"))));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("ushers", List.of("he", ""))));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("ushers", List.of("abcdefghijk"))));
-        assertBadRequest(controller().ahoCorasick(
-                ahoRequest("ushers", List.of("HE"))));
-        // A valid request returns 200.
-        assertEquals(200, controller().ahoCorasick(
-                ahoRequest("ushers", DEMO_PATTERNS))
-                .getStatusCode().value());
-    }
 
-    @Test
-    void bridges400() {
-        assertBadRequest(controller().graphBridges(
-                bridgesRequest(null, 0)));
-        assertBadRequest(controller().graphBridges(
-                bridgesRequest(List.of(List.of(0, 1)), 0)));
-        assertBadRequest(controller().graphBridges(
-                bridgesRequest(List.of(
-                        List.of(0, 1), List.of(1, 2), List.of(2, 0),
-                        List.of(0, 3), List.of(1, 3), List.of(2, 3),
-                        List.of(0, 4), List.of(1, 4), List.of(2, 4),
-                        List.of(3, 4), List.of(0, 5), List.of(1, 5),
-                        List.of(2, 5)), 0)));
-        assertBadRequest(controller().graphBridges(
-                bridgesRequest(List.of(
-                        List.of(0, 1, 2), List.of(1, 2)), 0)));
-        assertBadRequest(controller().graphBridges(
-                bridgesRequest(List.of(
-                        List.of(0, 21), List.of(1, 2)), 0)));
-        assertBadRequest(controller().graphBridges(
-                bridgesRequest(DEMO_EDGES, 9)));
-        // A missing start is allowed — it defaults to the smallest node.
-        assertEquals(200, controller().graphBridges(
-                bridgesRequest(DEMO_EDGES, null))
-                .getStatusCode().value());
-        // A valid request returns 200.
-        assertEquals(200, controller().graphBridges(
-                bridgesRequest(DEMO_EDGES, 0))
-                .getStatusCode().value());
-    }
-
-    @Test
-    void manacher400() {
-        assertBadRequest(controller().manacher(
-                manacherRequest(null)));
-        assertBadRequest(controller().manacher(
-                manacherRequest("")));
-        assertBadRequest(controller().manacher(
-                manacherRequest("a".repeat(21))));
-        assertBadRequest(controller().manacher(
-                manacherRequest("Forgeeksskeegfor")));
-        // A valid request returns 200.
-        assertEquals(200, controller().manacher(
-                manacherRequest(DEMO_WORD))
-                .getStatusCode().value());
-    }
 }

@@ -116,7 +116,7 @@ class Phase19ServiceTest {
      * the Phase 19 ones (validation 400s before any service is
      * called). The parameter order is the constructor's: 7 nulls,
      * hashTable, 25 nulls, scc, huffman (35 total). */
-    
+
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
