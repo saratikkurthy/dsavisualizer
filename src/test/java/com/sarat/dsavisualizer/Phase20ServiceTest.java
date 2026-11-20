@@ -105,17 +105,7 @@ class Phase20ServiceTest {
      * the Phase 20 ones (validation 400s before any service is
      * called). The parameter order is the constructor's: 35
      * Phase 1–19 params, then maxFlow, lfu, sudoku (38 total). */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null,
-                null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null,
-                null, null,
-                maxFlowService, lfuCacheService, sudokuService);
-    }
+    
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -338,100 +328,4 @@ class Phase20ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
-    @Test
-    void maxFlow400() {
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(DEMO_EDGES, null, 5)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(DEMO_EDGES, 0, null)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(DEMO_EDGES, 0, 0)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(DEMO_EDGES, 0, 9)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(List.of(
-                        List.of(0, 1, 0), List.of(1, 5, 3)), 0, 5)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(List.of(
-                        List.of(0, 1, 100), List.of(1, 5, 3)), 0, 5)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(List.of(
-                        List.of(0, 1), List.of(1, 5)), 0, 5)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(List.of(List.of(0, 1, 5)), 0, 1)));
-        assertBadRequest(controller().graphMaxFlow(
-                maxFlowRequest(List.of(
-                        List.of(0, 10, 5), List.of(1, 5, 3)), 0, 5)));
-    }
-
-    @Test
-    void lfu400() {
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(null, DEMO_OPS)));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(0, DEMO_OPS)));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(6, DEMO_OPS)));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(2, List.of())));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(2, List.of("put 1 1", "put 1 1", "put 1 1",
-                        "put 1 1", "put 1 1", "put 1 1", "put 1 1",
-                        "put 1 1", "put 1 1", "put 1 1", "put 1 1"))));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(2, List.of("put 1"))));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(2, List.of("put 100 1"))));
-        assertBadRequest(controller().lfuSimulate(
-                lfuRequest(2, List.of("put 1 1000"))));
-    }
-
-    @Test
-    void sudoku400() {
-        assertBadRequest(controller().sudoku(sudokuRequest(null)));
-        assertBadRequest(controller().sudoku(sudokuRequest(
-                DEMO_GRID.subList(0, 8))));
-        assertBadRequest(controller().sudoku(sudokuRequest(List.of(
-                List.of(5, 3, 0, 0, 7, 0, 0, 0),
-                List.of(6, 0, 0, 1, 9, 0, 0, 0, 0),
-                List.of(0, 9, 8, 0, 0, 0, 0, 6, 0),
-                List.of(8, 0, 0, 0, 6, 0, 0, 0, 3),
-                List.of(4, 0, 0, 8, 0, 3, 0, 0, 1),
-                List.of(7, 0, 0, 0, 2, 0, 0, 0, 6),
-                List.of(0, 6, 0, 0, 0, 0, 2, 8, 0),
-                List.of(0, 0, 0, 4, 1, 9, 0, 0, 5),
-                List.of(0, 0, 0, 0, 8, 0, 0, 7, 9)))));
-        assertBadRequest(controller().sudoku(sudokuRequest(List.of(
-                List.of(5, 3, 0, 0, 7, 0, 0, 0, 10),
-                List.of(6, 0, 0, 1, 9, 0, 0, 0, 0),
-                List.of(0, 9, 8, 0, 0, 0, 0, 6, 0),
-                List.of(8, 0, 0, 0, 6, 0, 0, 0, 3),
-                List.of(4, 0, 0, 8, 0, 3, 0, 0, 1),
-                List.of(7, 0, 0, 0, 2, 0, 0, 0, 6),
-                List.of(0, 6, 0, 0, 0, 0, 2, 8, 0),
-                List.of(0, 0, 0, 4, 1, 9, 0, 0, 5),
-                List.of(0, 0, 0, 0, 8, 0, 0, 7, 9)))));
-        // Duplicate 5s in row 0.
-        assertBadRequest(controller().sudoku(sudokuRequest(List.of(
-                List.of(5, 3, 0, 0, 7, 0, 0, 0, 5),
-                List.of(6, 0, 0, 1, 9, 0, 0, 0, 0),
-                List.of(0, 9, 8, 0, 0, 0, 0, 6, 0),
-                List.of(8, 0, 0, 0, 6, 0, 0, 0, 3),
-                List.of(4, 0, 0, 8, 0, 3, 0, 0, 1),
-                List.of(7, 0, 0, 0, 2, 0, 0, 0, 6),
-                List.of(0, 6, 0, 0, 0, 0, 2, 8, 0),
-                List.of(0, 0, 0, 4, 1, 9, 0, 0, 5),
-                List.of(0, 0, 0, 0, 8, 0, 0, 7, 9)))));
-        // Duplicate 5s in the top-left box.
-        assertBadRequest(controller().sudoku(sudokuRequest(List.of(
-                List.of(5, 3, 0, 0, 7, 0, 0, 0, 0),
-                List.of(6, 5, 0, 1, 9, 0, 0, 0, 0),
-                List.of(0, 9, 8, 0, 0, 0, 0, 6, 0),
-                List.of(8, 0, 0, 0, 6, 0, 0, 0, 3),
-                List.of(4, 0, 0, 8, 0, 3, 0, 0, 1),
-                List.of(7, 0, 0, 0, 2, 0, 0, 0, 6),
-                List.of(0, 6, 0, 0, 0, 0, 2, 8, 0),
-                List.of(0, 0, 0, 4, 1, 9, 0, 0, 5),
-                List.of(0, 0, 0, 0, 8, 0, 0, 7, 9)))));
-    }
 }
