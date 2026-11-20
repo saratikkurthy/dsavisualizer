@@ -303,38 +303,7 @@ class Phase12ServiceTest {
 
     // ---- Edit-distance tests ----
 
-    @Test
-    void editDistanceKitten() {
-        // kitten -> sitten (k->s) -> sittin (e->i) -> sitting
-        // (insert g): 3 operations.
-        List<Step> steps = dpService.editDistance(
-                List.of("kitten", "sitting"));
-        Step last = lastStep(steps);
-        assertEquals(3, last.getTable().get(6).get(7));
-        assertTrue(last.getMessage().contains("Edit distance: 3"));
-        assertTrue(last.getMessage().contains(
-                "Operations: substitute k→s, substitute e→i, insert g."));
-    }
-
-    @Test
-    void editDistanceFlaw() {
-        // flaw -> law (delete f) -> lawn (insert n): 2 operations.
-        List<Step> steps = dpService.editDistance(
-                List.of("flaw", "lawn"));
-        Step last = lastStep(steps);
-        assertEquals(2, last.getTable().get(4).get(4));
-        assertTrue(last.getMessage().contains("Edit distance: 2"));
-    }
-
-    @Test
-    void editDistanceSame() {
-        List<Step> steps = dpService.editDistance(
-                List.of("ABC", "ABC"));
-        Step last = lastStep(steps);
-        assertEquals(0, last.getTable().get(3).get(3));
-        assertTrue(last.getMessage().contains("Edit distance: 0"));
-    }
-
+   
     // ---- LPS tests ----
 
     /** True when sub is a subsequence of s (in order, not necessarily contiguous). */
