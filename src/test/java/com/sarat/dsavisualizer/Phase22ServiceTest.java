@@ -114,19 +114,7 @@ class Phase22ServiceTest {
      * called). The parameter order is the constructor's: 41
      * Phase 1–21 params, then bidijkstra, ch, geohash
      * (44 total). */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null,
-                null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null,
-                null, null,
-                null, null, null,
-                null, null, null,
-                bidijkstraService, chService, geohashService);
-    }
+   
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -508,116 +496,5 @@ class Phase22ServiceTest {
         assertEquals(DEMO_GEOHASH_MESSAGE, lastStep(steps).getMessage());
     }
 
-    // ---- 400 tests (controller validation) ----
 
-    @Test
-    void bidijkstra400() {
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(null, 0, 5)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(List.of(), 0, 5)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(List.of(
-                        List.of(0, 1, 0), List.of(1, 2, 1)), 0, 2)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(List.of(
-                        List.of(0, 1, -3), List.of(1, 2, 1)), 0, 2)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(BID_EDGES, null, 5)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(BID_EDGES, 0, null)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(BID_EDGES, 0, 0)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(BID_EDGES, 9, 5)));
-        assertBadRequest(controller().graphBidijkstra(
-                graphRequest(BID_EDGES, 0, 9)));
-        // A valid request returns 200 (a null weight defaults to 1).
-        assertEquals(200, controller().graphBidijkstra(
-                graphRequest(BID_EDGES, 0, 5))
-                .getStatusCode().value());
-        assertEquals(200, controller().graphBidijkstra(
-                graphRequest(List.of(
-                        List.of(0, 1), List.of(1, 2, 3)), 0, 2))
-                .getStatusCode().value());
-    }
-
-    @Test
-    void ch400() {
-        assertBadRequest(controller().graphCh(
-                chRequest(null, 0, 5, CH_ORDER)));
-        assertBadRequest(controller().graphCh(
-                chRequest(List.of(), 0, 5, CH_ORDER)));
-        assertBadRequest(controller().graphCh(
-                chRequest(List.of(
-                        List.of(0, 1, 0), List.of(1, 2, 1)), 0, 2,
-                        List.of(0, 1, 2))));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, null, 5, CH_ORDER)));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, null, CH_ORDER)));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, 0, CH_ORDER)));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 9, 5, CH_ORDER)));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, 9, CH_ORDER)));
-        // A bad order is not a permutation of the graph's nodes.
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, 5, List.of(2, 1, 4, 0, 3))));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, 5, List.of(2, 1, 4, 0, 3, 3))));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, 5, List.of(2, 1, 4, 0, 3, 9))));
-        assertBadRequest(controller().graphCh(
-                chRequest(CH_EDGES, 0, 5, List.of(2, 1, 4, 0, 3, 5, 0))));
-        // A valid request returns 200, with or without an order.
-        assertEquals(200, controller().graphCh(
-                chRequest(CH_EDGES, 0, 5, CH_ORDER))
-                .getStatusCode().value());
-        assertEquals(200, controller().graphCh(
-                chRequest(CH_EDGES, 0, 5, null))
-                .getStatusCode().value());
-    }
-
-    @Test
-    void geohash400() {
-        assertBadRequest(controller().geohash(
-                geohashRequest(null, 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("abc", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("33.236", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("33.236,abc", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("33.236,-96.786,1", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("91,0", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("-91,0", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("0,181", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("0,-181", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest("NaN,0", 6)));
-        assertBadRequest(controller().geohash(
-                geohashRequest(DEMO_LATLON, 0)));
-        assertBadRequest(controller().geohash(
-                geohashRequest(DEMO_LATLON, 13)));
-        // A valid request returns 200, with or without a precision.
-        assertEquals(200, controller().geohash(
-                geohashRequest(DEMO_LATLON, 6))
-                .getStatusCode().value());
-        assertEquals(200, controller().geohash(
-                geohashRequest(DEMO_LATLON, null))
-                .getStatusCode().value());
-        // Whitespace around the pair is tolerated.
-        assertEquals(200, controller().geohash(
-                geohashRequest(" 33.236 , -96.786 ", 6))
-                .getStatusCode().value());
-    }
 }

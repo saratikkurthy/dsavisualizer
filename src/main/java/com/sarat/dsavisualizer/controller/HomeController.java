@@ -66,6 +66,23 @@ import java.util.Map;
  * all 84 POST trace endpoints (Phase 22's graph/bidijkstra,
  * graph/ch and geo/geohash — the Google Maps algorithms).</p>
  *
+ * <p>Updated for Phase 23 (2026-11-20): the endpoint list now covers
+ * all 90 POST trace endpoints (Phase 23's spatial/quadtree,
+ * spatial/kdtree, spatial/rtree, graph/yen, graph/traffic and
+ * spatial/tsp — graphs and Google Maps, part 2).</p>
+ *
+ * <p>Updated for Phase 24 (2026-11-20): the endpoint list now covers
+ * all 97 POST trace endpoints (Phase 24's geometry/convexhull,
+ * geometry/closestpair, geometry/linesweep, geometry/voronoi,
+ * search/invertedindex, search/tfidf and search/pagerank —
+ * computational geometry and search &amp; ranking).</p>
+ *
+ * <p>Updated for Phase 25 (2026-11-20): the endpoint list now covers
+ * all 103 POST trace endpoints (Phase 25's tree/hld,
+ * tree/centroid, tree/persistentseg, flow/hopcroftkarp,
+ * flow/mincostflow and flow/hungarian — advanced trees and
+ * matching &amp; flow).</p>
+ *
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -126,10 +143,29 @@ public class HomeController {
                         "POST /api/graph/floydwarshall",
                         "POST /api/graph/scc",
                         "POST /api/graph/maxflow",
+                        "POST /api/flow/hopcroftkarp",
+                        "POST /api/flow/mincostflow",
+                        "POST /api/flow/hungarian",
                         "POST /api/graph/bridges",
                         "POST /api/graph/bidijkstra",
                         "POST /api/graph/ch",
                         "POST /api/geo/geohash",
+                        "POST /api/spatial/quadtree",
+                        "POST /api/spatial/kdtree",
+                        "POST /api/spatial/rtree",
+                        "POST /api/graph/yen",
+                        "POST /api/graph/traffic",
+                        "POST /api/spatial/tsp",
+                        "POST /api/geometry/convexhull",
+                        "POST /api/geometry/closestpair",
+                        "POST /api/geometry/linesweep",
+                        "POST /api/geometry/voronoi",
+                        "POST /api/search/invertedindex",
+                        "POST /api/search/tfidf",
+                        "POST /api/search/pagerank",
+                        "POST /api/tree/hld",
+                        "POST /api/tree/centroid",
+                        "POST /api/tree/persistentseg",
                         "POST /api/dp/knapsack",
                         "POST /api/dp/lcs",
                         "POST /api/dp/coinchange",
