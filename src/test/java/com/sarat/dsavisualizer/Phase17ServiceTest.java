@@ -80,7 +80,6 @@ class Phase17ServiceTest {
     /** The controller under test: nulls for every service except
      * the three Phase 17 ones (validation 400s before any service
      * is called). The parameter order is the constructor's. */
-    
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -293,5 +292,6 @@ class Phase17ServiceTest {
     }
 
     // ---- 400 tests (controller validation) ----
+
 
 }
