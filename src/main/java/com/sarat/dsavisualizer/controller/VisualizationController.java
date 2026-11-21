@@ -13,7 +13,9 @@ import com.sarat.dsavisualizer.service.BridgesService;
 import com.sarat.dsavisualizer.service.BstService;
 import com.sarat.dsavisualizer.service.BTreeService;
 import com.sarat.dsavisualizer.service.BucketSortService;
+import com.sarat.dsavisualizer.service.ClosestPairService;
 import com.sarat.dsavisualizer.service.ContractionHierarchiesService;
+import com.sarat.dsavisualizer.service.ConvexHullService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
 import com.sarat.dsavisualizer.service.FenwickTreeService;
@@ -23,16 +25,32 @@ import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.HeapSortService;
 import com.sarat.dsavisualizer.service.HuffmanService;
+import com.sarat.dsavisualizer.service.CentroidService;
+import com.sarat.dsavisualizer.service.HldService;
+import com.sarat.dsavisualizer.service.HopcroftKarpService;
+import com.sarat.dsavisualizer.service.HungarianService;
+import com.sarat.dsavisualizer.service.InvertedIndexService;
+import com.sarat.dsavisualizer.service.MinCostFlowService;
+import com.sarat.dsavisualizer.service.PersistentSegService;
+import com.sarat.dsavisualizer.service.KdTreeService;
 import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
 import com.sarat.dsavisualizer.service.LfuCacheService;
+import com.sarat.dsavisualizer.service.LineSweepService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.LruCacheService;
 import com.sarat.dsavisualizer.service.ManacherService;
 import com.sarat.dsavisualizer.service.MaxFlowService;
+import com.sarat.dsavisualizer.service.PageRankService;
 import com.sarat.dsavisualizer.service.QueueService;
 import com.sarat.dsavisualizer.service.QuickSelectService;
+import com.sarat.dsavisualizer.service.QuadtreeService;
+import com.sarat.dsavisualizer.service.RTreeService;
 import com.sarat.dsavisualizer.service.RabinKarpService;
+import com.sarat.dsavisualizer.service.TfidfService;
+import com.sarat.dsavisualizer.service.TrafficDijkstraService;
+import com.sarat.dsavisualizer.service.TspService;
+import com.sarat.dsavisualizer.service.YenService;
 import com.sarat.dsavisualizer.service.RadixService;
 import com.sarat.dsavisualizer.service.RedBlackService;
 import com.sarat.dsavisualizer.service.SccService;
@@ -46,6 +64,7 @@ import com.sarat.dsavisualizer.service.SudokuService;
 import com.sarat.dsavisualizer.service.SuffixArrayService;
 import com.sarat.dsavisualizer.service.TrieService;
 import com.sarat.dsavisualizer.service.UnionFindService;
+import com.sarat.dsavisualizer.service.VoronoiService;
 import com.sarat.dsavisualizer.service.ZAlgorithmService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -55,6 +74,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -201,6 +221,69 @@ import java.util.Set;
  * "lat,lon" pair, lat is outside [-90, 90], lon is outside
  * [-180, 180], or the precision (index) is outside 1..12
  * (a missing precision defaults to 6).
+ * Validation rule (Phase 23): quadtree 400 when the word is
+ * missing or not a "x,y;x,y;..." point list, a point is
+ * outside the 100x100 map, capacity is outside 1..16 (a
+ * missing capacity defaults to 2), or a query rect (values)
+ * is not 4 numbers (a missing rect defaults to the whole
+ * bounds). K-d tree 400 when the word is missing or not a
+ * point list, or a query point (values) is not 2 numbers (a
+ * missing query defaults to (9,2)). R-tree 400 when the word
+ * is missing or not a "x1,y1,x2,y2;..." rect list, a rect has
+ * x1 &gt;= x2 or y1 &gt;= y2, capacity is outside 2..8 (a
+ * missing capacity defaults to 4), or a query rect (values)
+ * is not 4 numbers (a missing rect defaults to
+ * (12,12,30,30)). Yen 400 like bidirectional Dijkstra, plus
+ * K (index) outside 1..5 (a missing K defaults to 3).
+ * Traffic-aware Dijkstra 400 like bidirectional Dijkstra,
+ * plus the departure hour (index) outside 0..23 (a missing
+ * hour defaults to 8), or rush factors (values) with a
+ * non-positive entry or a length different from the edge
+ * count (missing factors default to all 1x). TSP 400 when the
+ * word is missing or not a point list, or fewer than 3 points.
+ * Validation rule (Phase 24): convex hull 400 when the word is
+ * missing or not a "x,y;x,y;..." point list, or fewer than 3
+ * points. Closest pair 400 the same, with fewer than 2 points.
+ * Line sweep 400 when the word is missing or not a
+ * "x1,y1,x2,y2;..." segment list. Voronoi 400 when the word is
+ * missing or not a point list, fewer than 2 sites, or a site is
+ * outside the fixed [0,0,10,10] box. Inverted index and TF-IDF
+ * 400 when the documents (words) are missing/empty (a missing
+ * query word defaults to the demo query: "tree traversal" /
+ * "binary tree"). PageRank 400 when graphEdges is missing/empty,
+ * any edge is not a [u, v] pair, any node id is negative or
+ * outside the page range, the iterations (index) are outside
+ * 1..20 (a missing count defaults to 10), or the page count
+ * (value) is outside 1..20 or below max-node-id + 1 (a missing
+ * count defaults to max-node-id + 1 — the frontend sends the
+ * page count because a dangling page has no links to infer it
+ * from).
+ * Validation rule (Phase 25): HLD 400 when graphEdges is
+ * missing/empty, any edge is not a [parent, child] pair, any
+ * node id is negative or above 20, a node has two parents,
+ * there is no single root, or the edges do not connect the
+ * tree (a given start/target must be a node in the tree; a
+ * missing start/target defaults to 7/5, the demo query).
+ * Centroid 400 when graphEdges is missing/empty, any edge is
+ * not a [u, v] pair, or any node id is negative or above 20.
+ * Persistent segment tree 400 when the word is missing or
+ * not a comma list of numbers, the array is longer than 8
+ * or any |value| is over 999, values is missing, odd or
+ * shorter than 2, an update index is out of range, an update
+ * value has |value| over 999, or the query range is out of
+ * range or reversed. Hopcroft-Karp 400 when graphEdges is
+ * missing/empty, any edge is not a [left, right] pair, any
+ * node id is negative or above 9, an edge is a self-loop, or
+ * a node appears on both sides. Min-cost max-flow 400 like
+ * max flow (2..12 edges, [u, v, cap] triples, capacity
+ * 1..99, node ids 0..9), plus a costs list (values) whose
+ * length differs from the edge count or any cost outside
+ * -99..99 (a missing costs list defaults to all zero; a
+ * missing start/target defaults to the smallest/largest node
+ * id). Hungarian 400 when the word is missing or not a
+ * "a,b,c;d,e,f;..." matrix, the rows are not all the same
+ * length, the matrix is not square, its size is outside
+ * 2..6, or any cost is outside 0..99.
  */
 @RestController
 @RequestMapping("/api")
@@ -251,6 +334,25 @@ public class VisualizationController {
     private final BidirectionalDijkstraService bidijkstraService;
     private final ContractionHierarchiesService chService;
     private final GeohashService geohashService;
+    private final QuadtreeService quadtreeService;
+    private final KdTreeService kdTreeService;
+    private final RTreeService rTreeService;
+    private final YenService yenService;
+    private final TrafficDijkstraService trafficService;
+    private final TspService tspService;
+    private final ConvexHullService convexHullService;
+    private final ClosestPairService closestPairService;
+    private final LineSweepService lineSweepService;
+    private final VoronoiService voronoiService;
+    private final InvertedIndexService invertedIndexService;
+    private final TfidfService tfidfService;
+    private final PageRankService pageRankService;
+    private final HldService hldService;
+    private final CentroidService centroidService;
+    private final PersistentSegService persistentSegService;
+    private final HopcroftKarpService hopcroftKarpService;
+    private final MinCostFlowService minCostFlowService;
+    private final HungarianService hungarianService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -295,7 +397,26 @@ public class VisualizationController {
                                    ManacherService manacherService,
                                    BidirectionalDijkstraService bidijkstraService,
                                    ContractionHierarchiesService chService,
-                                   GeohashService geohashService) {
+                                   GeohashService geohashService,
+                                   QuadtreeService quadtreeService,
+                                   KdTreeService kdTreeService,
+                                   RTreeService rTreeService,
+                                   YenService yenService,
+                                   TrafficDijkstraService trafficService,
+                                   TspService tspService,
+                                   ConvexHullService convexHullService,
+                                   ClosestPairService closestPairService,
+                                   LineSweepService lineSweepService,
+                                   VoronoiService voronoiService,
+                                   InvertedIndexService invertedIndexService,
+                                   TfidfService tfidfService,
+                                   PageRankService pageRankService,
+                                   HldService hldService,
+                                   CentroidService centroidService,
+                                   PersistentSegService persistentSegService,
+                                   HopcroftKarpService hopcroftKarpService,
+                                   MinCostFlowService minCostFlowService,
+                                   HungarianService hungarianService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -340,6 +461,25 @@ public class VisualizationController {
         this.bidijkstraService = bidijkstraService;
         this.chService = chService;
         this.geohashService = geohashService;
+        this.quadtreeService = quadtreeService;
+        this.kdTreeService = kdTreeService;
+        this.rTreeService = rTreeService;
+        this.yenService = yenService;
+        this.trafficService = trafficService;
+        this.tspService = tspService;
+        this.convexHullService = convexHullService;
+        this.closestPairService = closestPairService;
+        this.lineSweepService = lineSweepService;
+        this.voronoiService = voronoiService;
+        this.invertedIndexService = invertedIndexService;
+        this.tfidfService = tfidfService;
+        this.pageRankService = pageRankService;
+        this.hldService = hldService;
+        this.centroidService = centroidService;
+        this.persistentSegService = persistentSegService;
+        this.hopcroftKarpService = hopcroftKarpService;
+        this.minCostFlowService = minCostFlowService;
+        this.hungarianService = hungarianService;
     }
 
     @GetMapping("/health")
@@ -1409,6 +1549,265 @@ public class VisualizationController {
         List<Step> steps = geohashService.geohash(
                 request.getWord(), request.getIndex());
         return ResponseEntity.ok(new TraceResponse("Geohash", steps));
+    }
+
+    // ---- Quadtree, k-d tree, R-tree, Yen, traffic, TSP (Phase 23) ----
+
+    @PostMapping("/spatial/quadtree")
+    public ResponseEntity<?> spatialQuadtree(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateQuadtree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = quadtreeService.quadtree(
+                request.getWord(), request.getValues(),
+                request.getCapacity());
+        return ResponseEntity.ok(new TraceResponse("Quadtree", steps));
+    }
+
+    @PostMapping("/spatial/kdtree")
+    public ResponseEntity<?> spatialKdTree(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateKdTree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = kdTreeService.kdtree(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse("K-d Tree", steps));
+    }
+
+    @PostMapping("/spatial/rtree")
+    public ResponseEntity<?> spatialRTree(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateRTree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = rTreeService.rtree(
+                request.getWord(), request.getValues(),
+                request.getCapacity());
+        return ResponseEntity.ok(new TraceResponse("R-Tree", steps));
+    }
+
+    @PostMapping("/graph/yen")
+    public ResponseEntity<?> graphYen(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateYen(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = yenService.yen(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget(), request.getIndex());
+        return ResponseEntity.ok(new TraceResponse(
+                "Yen's K-Shortest Paths", steps));
+    }
+
+    @PostMapping("/graph/traffic")
+    public ResponseEntity<?> graphTraffic(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTraffic(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = trafficService.traffic(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget(), request.getIndex(),
+                request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Traffic-Aware Dijkstra", steps));
+    }
+
+    @PostMapping("/spatial/tsp")
+    public ResponseEntity<?> spatialTsp(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTsp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = tspService.tsp(request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Travelling Salesman Problem", steps));
+    }
+
+    // ---- Geometry (Phase 24) ----
+
+    @PostMapping("/geometry/convexhull")
+    public ResponseEntity<?> geometryConvexHull(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateConvexHull(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = convexHullService.convexHull(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Convex Hull", steps));
+    }
+
+    @PostMapping("/geometry/closestpair")
+    public ResponseEntity<?> geometryClosestPair(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateClosestPair(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = closestPairService.closestPair(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Closest Pair", steps));
+    }
+
+    @PostMapping("/geometry/linesweep")
+    public ResponseEntity<?> geometryLineSweep(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLineSweep(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = lineSweepService.lineSweep(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Line Sweep", steps));
+    }
+
+    @PostMapping("/geometry/voronoi")
+    public ResponseEntity<?> geometryVoronoi(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateVoronoi(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = voronoiService.voronoi(request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Voronoi Diagram", steps));
+    }
+
+    // ---- Search & ranking (Phase 24) ----
+
+    @PostMapping("/search/invertedindex")
+    public ResponseEntity<?> searchInvertedIndex(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateInvertedIndex(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = invertedIndexService.invertedIndex(
+                request.getWords(), request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Inverted Index", steps));
+    }
+
+    @PostMapping("/search/tfidf")
+    public ResponseEntity<?> searchTfidf(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTfidf(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = tfidfService.tfidf(
+                request.getWords(), request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "TF-IDF Ranking", steps));
+    }
+
+    @PostMapping("/search/pagerank")
+    public ResponseEntity<?> searchPageRank(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validatePageRank(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = pageRankService.pagerank(
+                request.getGraphEdges(), request.getIndex(),
+                request.getValue());
+        return ResponseEntity.ok(new TraceResponse(
+                "PageRank", steps));
+    }
+
+    // ---- Advanced trees (Phase 25) ----
+
+    @PostMapping("/tree/hld")
+    public ResponseEntity<?> treeHld(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateHld(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = hldService.hld(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget());
+        return ResponseEntity.ok(new TraceResponse(
+                "Heavy-Light Decomposition", steps));
+    }
+
+    @PostMapping("/tree/centroid")
+    public ResponseEntity<?> treeCentroid(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateCentroid(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = centroidService.centroid(
+                request.getGraphEdges());
+        return ResponseEntity.ok(new TraceResponse(
+                "Centroid Decomposition", steps));
+    }
+
+    @PostMapping("/tree/persistentseg")
+    public ResponseEntity<?> treePersistentSeg(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validatePersistentSeg(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = persistentSegService.persistentSeg(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Persistent Segment Tree", steps));
+    }
+
+    // ---- Matching & flow (Phase 25) ----
+
+    @PostMapping("/flow/hopcroftkarp")
+    public ResponseEntity<?> flowHopcroftKarp(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateHopcroftKarp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = hopcroftKarpService.hopcroftKarp(
+                request.getGraphEdges());
+        return ResponseEntity.ok(new TraceResponse(
+                "Hopcroft-Karp", steps));
+    }
+
+    @PostMapping("/flow/mincostflow")
+    public ResponseEntity<?> flowMinCostFlow(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateMinCostFlow(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = minCostFlowService.minCostFlow(
+                request.getGraphEdges(), request.getValues(),
+                request.getStart(), request.getTarget());
+        return ResponseEntity.ok(new TraceResponse(
+                "Min-Cost Max-Flow", steps));
+    }
+
+    @PostMapping("/flow/hungarian")
+    public ResponseEntity<?> flowHungarian(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateHungarian(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = hungarianService.hungarian(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Hungarian Algorithm", steps));
     }
 
     // ---- Validation helpers ----
@@ -2964,6 +3363,873 @@ public class VisualizationController {
                             "geohash needs a precision between 1 and 12"));
         }
         return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "x,y;x,y;..."
+     * point list, a point is outside the 100x100 map, the
+     * capacity is outside 1..16 (a missing capacity defaults
+     * to 2), or a query rect (values) is not 4 numbers (a
+     * missing rect defaults to the whole bounds). Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateQuadtree(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        List<int[]> points = parsePointList(request.getWord());
+        if (points == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "quadtree needs points as \"x,y;x,y;...\""));
+        }
+        for (int[] p : points) {
+            if (p[0] < 0 || p[0] > 100 || p[1] < 0 || p[1] > 100) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "quadtree points must be inside the "
+                                        + "100x100 map"));
+            }
+        }
+        Integer capacity = request.getCapacity();
+        if (capacity != null && (capacity < 1 || capacity > 16)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "quadtree needs a capacity between 1 and 16"));
+        }
+        List<Integer> rect = request.getValues();
+        if (rect != null && !rect.isEmpty() && rect.size() != 4) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "quadtree needs a query rect "
+                                    + "[x0, y0, x1, y1]"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "x,y;x,y;..."
+     * point list, or a query point (values) is not 2 numbers
+     * (a missing query defaults to (9,2)). Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateKdTree(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (parsePointList(request.getWord()) == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "k-d tree needs points as \"x,y;x,y;...\""));
+        }
+        List<Integer> query = request.getValues();
+        if (query != null && !query.isEmpty() && query.size() != 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "k-d tree needs a query point [x, y]"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a
+     * "x1,y1,x2,y2;..." rect list, a rect has x1 &gt;= x2 or
+     * y1 &gt;= y2, the capacity is outside 2..8 (a missing
+     * capacity defaults to 4), or a query rect (values) is not
+     * 4 numbers (a missing rect defaults to (12,12,30,30)).
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateRTree(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        List<int[]> rects = parseRectList(request.getWord());
+        if (rects == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "R-tree needs rectangles as "
+                                    + "\"x1,y1,x2,y2;...\""));
+        }
+        for (int[] r : rects) {
+            if (r[0] >= r[2] || r[1] >= r[3]) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "R-tree rectangles need x1 < x2 and "
+                                        + "y1 < y2"));
+            }
+        }
+        Integer capacity = request.getCapacity();
+        if (capacity != null && (capacity < 2 || capacity > 8)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "R-tree needs a capacity between 2 and 8"));
+        }
+        List<Integer> query = request.getValues();
+        if (query != null && !query.isEmpty() && query.size() != 4) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "R-tree needs a query rect "
+                                    + "[x0, y0, x1, y1]"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges/start is missing or any weight is
+     * &lt;= 0, the target is missing, start == target, or
+     * start/target is not a node in the graph, or K (index) is
+     * outside 1..5 (a missing K defaults to 3). Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateYen(TraceRequest request) {
+        ResponseEntity<?> error = validateBidirectionalDijkstra(request);
+        if (error != null) {
+            return error;
+        }
+        Integer k = request.getIndex();
+        if (k != null && (k < 1 || k > 5)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Yen's algorithm needs K between 1 and 5"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges/start is missing or any weight is
+     * &lt;= 0, the target is missing, start == target, or
+     * start/target is not a node in the graph, the departure
+     * hour (index) is outside 0..23 (a missing hour defaults
+     * to 8), or rush factors (values) have a non-positive entry
+     * or a length different from the edge count (missing
+     * factors default to all 1x). Null means "no error".
+     */
+    private ResponseEntity<?> validateTraffic(TraceRequest request) {
+        ResponseEntity<?> error = validateBidirectionalDijkstra(request);
+        if (error != null) {
+            return error;
+        }
+        Integer hour = request.getIndex();
+        if (hour != null && (hour < 0 || hour > 23)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "traffic needs a departure hour between "
+                                    + "0 and 23"));
+        }
+        List<Integer> factors = request.getValues();
+        if (factors != null && !factors.isEmpty()) {
+            if (factors.size() != request.getGraphEdges().size()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "rush factors must be parallel to the "
+                                        + "edges"));
+            }
+            for (Integer factor : factors) {
+                if (factor == null || factor <= 0) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "rush factors must be positive"));
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "x,y;x,y;..."
+     * point list, or fewer than 3 points. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateTsp(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        List<int[]> points = parsePointList(request.getWord());
+        if (points == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "TSP needs points as \"x,y;x,y;...\""));
+        }
+        if (points.size() < 3) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "TSP needs at least 3 points"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "x,y;x,y;..."
+     * point list, or fewer than 3 points. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateConvexHull(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        List<int[]> points = parsePointList(request.getWord());
+        if (points == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "convex hull needs points as "
+                                    + "\"x,y;x,y;...\""));
+        }
+        if (points.size() < 3) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "convex hull needs at least 3 points"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "x,y;x,y;..."
+     * point list, or fewer than 2 points. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateClosestPair(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        List<int[]> points = parsePointList(request.getWord());
+        if (points == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "closest pair needs points as "
+                                    + "\"x,y;x,y;...\""));
+        }
+        if (points.size() < 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "closest pair needs at least 2 points"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a
+     * "x1,y1,x2,y2;..." segment list. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateLineSweep(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (parseSegmentList(request.getWord()) == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "line sweep needs segments as "
+                                    + "\"x1,y1,x2,y2;...\""));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "x,y;x,y;..."
+     * point list, fewer than 2 sites, or a site is outside
+     * the fixed [0,0,10,10] box. Null means "no error".
+     */
+    private ResponseEntity<?> validateVoronoi(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        List<int[]> points = parsePointList(request.getWord());
+        if (points == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Voronoi needs sites as "
+                                    + "\"x,y;x,y;...\""));
+        }
+        if (points.size() < 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Voronoi needs at least 2 sites"));
+        }
+        for (int[] p : points) {
+            if (p[0] < 0 || p[0] > 10 || p[1] < 0 || p[1] > 10) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Voronoi sites must be inside the "
+                                        + "[0,0,10,10] box"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the documents (words) are missing/empty (a
+     * missing query word defaults to "tree traversal" in the
+     * service). Null means "no error".
+     */
+    private ResponseEntity<?> validateInvertedIndex(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "inverted index needs documents (words)"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the documents (words) are missing/empty (a
+     * missing query word defaults to "binary tree" in the
+     * service). Null means "no error".
+     */
+    private ResponseEntity<?> validateTfidf(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "TF-IDF needs documents (words)"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, any edge is not
+     * a [u, v] pair, any node id is negative or outside the
+     * page range, the iterations (index) are outside 1..20
+     * (a missing count defaults to 10), or the page count
+     * (value) is outside 1..20 or below max-node-id + 1 (a
+     * missing count defaults to max-node-id + 1). Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validatePageRank(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "PageRank needs links (graphEdges)"));
+        }
+        int maxNode = -1;
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() < 2
+                    || edge.get(0) == null || edge.get(1) == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "PageRank links must be [u, v] pairs"));
+            }
+            if (edge.get(0) < 0 || edge.get(1) < 0) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "PageRank page ids must be >= 0"));
+            }
+            maxNode = Math.max(maxNode,
+                    Math.max(edge.get(0), edge.get(1)));
+        }
+        Integer pageCount = request.getValue();
+        if (pageCount != null) {
+            if (pageCount < 1 || pageCount > 20) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "PageRank needs a page count "
+                                        + "between 1 and 20"));
+            }
+            if (pageCount <= maxNode) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "PageRank page count must cover "
+                                        + "every linked page"));
+            }
+        } else if (maxNode >= 20) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "PageRank needs at most 20 pages"));
+        }
+        Integer iterations = request.getIndex();
+        if (iterations != null && (iterations < 1 || iterations > 20)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "PageRank needs 1..20 iterations"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, any edge is not
+     * a [parent, child] pair, any node id is negative or
+     * above 20, a node has two parents, there is no single
+     * root, or the edges do not connect the tree (a given
+     * start/target must be a node in the tree; a missing
+     * start/target defaults to 7/5). Null means "no error".
+     */
+    private ResponseEntity<?> validateHld(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "HLD needs tree edges (graphEdges)"));
+        }
+        Map<Integer, Integer> parent = new java.util.HashMap<>();
+        Set<Integer> nodes = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() < 2
+                    || edge.get(0) == null || edge.get(1) == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "HLD edges must be [parent, child] "
+                                        + "pairs"));
+            }
+            if (edge.get(0) < 0 || edge.get(1) < 0
+                    || edge.get(0) > 20 || edge.get(1) > 20) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "HLD node ids must be between "
+                                        + "0 and 20"));
+            }
+            if (parent.containsKey(edge.get(1))) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "HLD needs a tree: node "
+                                        + edge.get(1)
+                                        + " has two parents"));
+            }
+            parent.put(edge.get(1), edge.get(0));
+            nodes.add(edge.get(0));
+            nodes.add(edge.get(1));
+        }
+        int roots = 0;
+        int root = -1;
+        for (int node : nodes) {
+            if (!parent.containsKey(node)) {
+                roots++;
+                root = node;
+            }
+        }
+        if (roots != 1) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "HLD needs a tree with exactly one "
+                                    + "root"));
+        }
+        // Connectivity: every node reachable from the root.
+        Set<Integer> seen = new HashSet<>();
+        List<Integer> stack = new ArrayList<>();
+        stack.add(root);
+        Map<Integer, List<Integer>> children = new java.util.HashMap<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            children.computeIfAbsent(edge.get(0),
+                    k -> new ArrayList<>()).add(edge.get(1));
+        }
+        while (!stack.isEmpty()) {
+            int node = stack.remove(stack.size() - 1);
+            if (!seen.add(node)) {
+                continue;
+            }
+            stack.addAll(children.getOrDefault(node, List.of()));
+        }
+        if (seen.size() != nodes.size()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "HLD needs a connected tree"));
+        }
+        if (request.getStart() != null
+                && !nodes.contains(request.getStart())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "HLD start must be a node in the tree"));
+        }
+        if (request.getTarget() != null
+                && !nodes.contains(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "HLD target must be a node in the tree"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, any edge is not
+     * a [u, v] pair, or any node id is negative or above 20.
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateCentroid(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "centroid decomposition needs tree "
+                                    + "edges (graphEdges)"));
+        }
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() < 2
+                    || edge.get(0) == null || edge.get(1) == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "centroid edges must be [u, v] "
+                                        + "pairs"));
+            }
+            if (edge.get(0) < 0 || edge.get(1) < 0
+                    || edge.get(0) > 20 || edge.get(1) > 20) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "centroid node ids must be between "
+                                        + "0 and 20"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a comma list of
+     * numbers, the array is longer than 8 or any |value| is
+     * over 999, values is missing, odd or shorter than 2, an
+     * update index is out of range, an update value has
+     * |value| over 999, or the query range is out of range
+     * or reversed. Null means "no error".
+     */
+    private ResponseEntity<?> validatePersistentSeg(
+            TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "persistent segment tree needs an "
+                                    + "array (word)"));
+        }
+        int[] array = parseIntList(request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the array must be comma-separated "
+                                    + "numbers"));
+        }
+        if (array.length < 1 || array.length > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "the array needs between 1 and 8 "
+                                    + "elements"));
+        }
+        for (int value : array) {
+            if (Math.abs(value) > 999) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "array values must be between "
+                                        + "-999 and 999"));
+            }
+        }
+        if (request.getValues() == null
+                || request.getValues().size() < 2
+                || request.getValues().size() % 2 != 0) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "persistent segment tree needs "
+                                    + "[updateIdx, updateVal, ..., "
+                                    + "queryL, queryR] (values)"));
+        }
+        int updateCount = (request.getValues().size() - 2) / 2;
+        for (int i = 0; i < updateCount; i++) {
+            int index = request.getValues().get(2 * i);
+            int value = request.getValues().get(2 * i + 1);
+            if (index < 0 || index >= array.length) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "update index " + index
+                                        + " is out of range"));
+            }
+            if (Math.abs(value) > 999) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "update values must be between "
+                                        + "-999 and 999"));
+            }
+        }
+        int queryLeft = request.getValues()
+                .get(request.getValues().size() - 2);
+        int queryRight = request.getValues()
+                .get(request.getValues().size() - 1);
+        if (queryLeft < 0 || queryRight >= array.length
+                || queryLeft > queryRight) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "query range [" + queryLeft + ", "
+                                    + queryRight + "] is out of "
+                                    + "range"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, any edge is not
+     * a [left, right] pair, any node id is negative or above
+     * 9, an edge is a self-loop, or a node appears on both
+     * sides. Null means "no error".
+     */
+    private ResponseEntity<?> validateHopcroftKarp(
+            TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Hopcroft-Karp needs bipartite edges "
+                                    + "(graphEdges)"));
+        }
+        Set<Integer> left = new HashSet<>();
+        Set<Integer> right = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() < 2
+                    || edge.get(0) == null || edge.get(1) == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Hopcroft-Karp edges must be "
+                                        + "[left, right] pairs"));
+            }
+            if (edge.get(0) < 0 || edge.get(1) < 0
+                    || edge.get(0) > 9 || edge.get(1) > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Hopcroft-Karp node ids must be "
+                                        + "between 0 and 9"));
+            }
+            if (edge.get(0).equals(edge.get(1))) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Hopcroft-Karp edges must not be "
+                                        + "self-loops"));
+            }
+            left.add(edge.get(0));
+            right.add(edge.get(1));
+        }
+        for (int node : left) {
+            if (right.contains(node)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Hopcroft-Karp node " + node
+                                        + " appears on both sides"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 400 like max flow (2..12 edges, [u, v, cap] triples,
+     * capacity 1..99, node ids 0..9), plus a costs list
+     * (values) whose length differs from the edge count or
+     * any cost outside -99..99 (a missing costs list
+     * defaults to all zero; a missing start/target defaults
+     * to the smallest/largest node id). Null means "no error".
+     */
+    private ResponseEntity<?> validateMinCostFlow(
+            TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "min-cost max-flow needs network edges "
+                                    + "(graphEdges)"));
+        }
+        if (request.getGraphEdges().size() < 2
+                || request.getGraphEdges().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "min-cost max-flow needs between 2 and "
+                                    + "12 edges"));
+        }
+        Set<Integer> nodes = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() != 3) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be "
+                                        + "[from, to, capacity]"));
+            }
+            Integer u = edge.get(0);
+            Integer v = edge.get(1);
+            Integer c = edge.get(2);
+            if (u == null || v == null || u < 0 || u > 9
+                    || v < 0 || v > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "min-cost max-flow node ids must be "
+                                        + "between 0 and 9"));
+            }
+            if (c == null || c < 1 || c > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "min-cost max-flow capacity must be "
+                                        + "between 1 and 99"));
+            }
+            nodes.add(u);
+            nodes.add(v);
+        }
+        if (request.getValues() != null) {
+            if (request.getValues().size()
+                    != request.getGraphEdges().size()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "min-cost max-flow needs one cost "
+                                        + "per edge"));
+            }
+            for (Integer cost : request.getValues()) {
+                if (cost == null || cost < -99 || cost > 99) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "min-cost max-flow costs must be "
+                                            + "between -99 and 99"));
+                }
+            }
+        }
+        if (request.getStart() != null
+                && request.getTarget() != null
+                && request.getStart().equals(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "source and sink must be different"));
+        }
+        if (request.getStart() != null
+                && !nodes.contains(request.getStart())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start must be a node in the network"));
+        }
+        if (request.getTarget() != null
+                && !nodes.contains(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "target must be a node in the network"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the word is missing or not a "a,b,c;d,e,f;..."
+     * matrix, the rows are not all the same length, the
+     * matrix is not square, its size is outside 2..6, or any
+     * cost is outside 0..99. Null means "no error".
+     */
+    private ResponseEntity<?> validateHungarian(
+            TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Hungarian algorithm needs a cost "
+                                    + "matrix (word)"));
+        }
+        String[] rows = request.getWord().trim().split(";", -1);
+        if (rows.length < 2 || rows.length > 6) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Hungarian matrix size must be "
+                                    + "between 2 and 6"));
+        }
+        for (String row : rows) {
+            String[] cells = row.trim().split(",", -1);
+            if (cells.length != rows.length) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Hungarian matrix must be square"));
+            }
+            for (String cell : cells) {
+                try {
+                    int cost = Integer.parseInt(cell.trim());
+                    if (cost < 0 || cost > 99) {
+                        return ResponseEntity.badRequest()
+                                .body(Map.of("error",
+                                        "Hungarian costs must be "
+                                                + "between 0 and 99"));
+                    }
+                } catch (NumberFormatException e) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "Hungarian matrix cells must be "
+                                            + "numbers"));
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Parses "3,1,4,1,5" into an int array, or null. */
+    private int[] parseIntList(String word) {
+        String[] parts = word.trim().split(",", -1);
+        int[] result = new int[parts.length];
+        try {
+            for (int i = 0; i < parts.length; i++) {
+                result[i] = Integer.parseInt(parts[i].trim());
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return result;
+    }
+
+    /** Parses "x,y;x,y;..." into integer point pairs, or null. */
+    private List<int[]> parsePointList(String word) {
+        List<int[]> points = new ArrayList<>();
+        for (String part : word.split(";", -1)) {
+            String[] xy = part.trim().split(",", -1);
+            if (xy.length != 2) {
+                return null;
+            }
+            try {
+                points.add(new int[]{
+                        Integer.parseInt(xy[0].trim()),
+                        Integer.parseInt(xy[1].trim())});
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return points.isEmpty() ? null : points;
+    }
+
+    /** Parses "x1,y1,x2,y2;..." into integer rects, or null. */
+    private List<int[]> parseRectList(String word) {
+        List<int[]> rects = new ArrayList<>();
+        for (String part : word.split(";", -1)) {
+            String[] xy = part.trim().split(",", -1);
+            if (xy.length != 4) {
+                return null;
+            }
+            try {
+                int[] r = new int[4];
+                for (int i = 0; i < 4; i++) {
+                    r[i] = Integer.parseInt(xy[i].trim());
+                }
+                rects.add(r);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return rects.isEmpty() ? null : rects;
+    }
+
+    /** Parses "x1,y1,x2,y2;..." into integer segments, or null. */
+    private List<int[]> parseSegmentList(String word) {
+        List<int[]> segments = new ArrayList<>();
+        for (String part : word.split(";", -1)) {
+            String[] xy = part.trim().split(",", -1);
+            if (xy.length != 4) {
+                return null;
+            }
+            try {
+                int[] s = new int[4];
+                for (int i = 0; i < 4; i++) {
+                    s[i] = Integer.parseInt(xy[i].trim());
+                }
+                segments.add(s);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return segments.isEmpty() ? null : segments;
     }
 
     /**
