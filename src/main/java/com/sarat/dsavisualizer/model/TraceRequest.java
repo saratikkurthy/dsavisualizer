@@ -7,6 +7,28 @@ import java.util.List;
  * {@code target} is only used by the search endpoints (nullable).
  * {@code value} is the element to push/enqueue/insert (nullable).
  * {@code index} is the position for list insert/delete (nullable).
+ * {@code capacity} is the hash table size (nullable, default 11).
+ * {@code graphEdges} is the graph edge list (nullable).
+ * {@code start} is the graph BFS/DFS start node (nullable).
+ * {@code words} is the words already in the trie (nullable).
+ * {@code word} is the word to insert into / search in the trie
+ * (nullable). NOTE: the trie search reads {@code word}, not
+ * {@code target} — {@code target} is an Integer and cannot hold a
+ * word (Phase 8).
+ * {@code weights}/{@code values} are the knapsack item weights and
+ * values (nullable); {@code capacity} doubles as the knapsack
+ * capacity for the DP endpoint (it already existed as the hash
+ * table size — Phase 10 reuses the same field).
+ * {@code grid} is the A* pathfinding grid (nullable; 0 = free,
+ * 1 = wall); {@code startCell}/{@code goalCell} are the A* start
+ * and goal as [row, col] (nullable) — Phase 11. These three are
+ * the ONLY fields Phase 11 adds: {@code values}, {@code target},
+ * {@code capacity} and {@code words} already existed (LCS reuses
+ * {@code words}; coin change reuses {@code values} + {@code target}).
+ * {@code costGrid} is the weighted-A* cost grid (nullable; 0 = wall,
+ * 1-9 = the cost to enter that cell) — Phase 12. It is the ONLY
+ * field Phase 12 adds: {@code startCell}/{@code goalCell} already
+ * existed and are reused for weighted A*.
  */
 public class TraceRequest {
 
@@ -14,6 +36,16 @@ public class TraceRequest {
     private Integer target;
     private Integer value;
     private Integer index;
+    private Integer capacity;
+    private List<List<Integer>> graphEdges;
+    private Integer start;
+    private List<String> words;
+    private String word;
+    private List<Integer> weights;
+    private List<List<Integer>> grid;
+    private List<Integer> startCell;
+    private List<Integer> goalCell;
+    private List<List<Integer>> costGrid;
 
     public TraceRequest() {
     }
@@ -53,5 +85,85 @@ public class TraceRequest {
 
     public void setIndex(Integer index) {
         this.index = index;
+    }
+
+    public Integer getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public List<List<Integer>> getGraphEdges() {
+        return graphEdges;
+    }
+
+    public void setGraphEdges(List<List<Integer>> graphEdges) {
+        this.graphEdges = graphEdges;
+    }
+
+    public Integer getStart() {
+        return start;
+    }
+
+    public void setStart(Integer start) {
+        this.start = start;
+    }
+
+    public List<String> getWords() {
+        return words;
+    }
+
+    public void setWords(List<String> words) {
+        this.words = words;
+    }
+
+    public String getWord() {
+        return word;
+    }
+
+    public void setWord(String word) {
+        this.word = word;
+    }
+
+    public List<Integer> getWeights() {
+        return weights;
+    }
+
+    public void setWeights(List<Integer> weights) {
+        this.weights = weights;
+    }
+
+    public List<List<Integer>> getGrid() {
+        return grid;
+    }
+
+    public void setGrid(List<List<Integer>> grid) {
+        this.grid = grid;
+    }
+
+    public List<Integer> getStartCell() {
+        return startCell;
+    }
+
+    public void setStartCell(List<Integer> startCell) {
+        this.startCell = startCell;
+    }
+
+    public List<Integer> getGoalCell() {
+        return goalCell;
+    }
+
+    public void setGoalCell(List<Integer> goalCell) {
+        this.goalCell = goalCell;
+    }
+
+    public List<List<Integer>> getCostGrid() {
+        return costGrid;
+    }
+
+    public void setCostGrid(List<List<Integer>> costGrid) {
+        this.costGrid = costGrid;
     }
 }
