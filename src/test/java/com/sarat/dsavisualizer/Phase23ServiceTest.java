@@ -88,6 +88,7 @@ class Phase23ServiceTest {
      * called). The parameter order is the constructor's: 44
      * Phase 1–22 params, then quadtree, kdtree, rtree, yen,
      * traffic, tsp (50 total). */
+    
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -390,4 +391,17 @@ class Phase23ServiceTest {
 
     // ---- 400 tests (controller validation) ----
 
+
+
+    /** A traffic request with graphEdges + start + target + hour + values. */
+    private TraceRequest trafficRequest(List<List<Integer>> edges,
+                                        Integer start, Integer target,
+                                        Integer hour,
+                                        List<Integer> values) {
+        TraceRequest request = graphRequest(edges, start, target, hour);
+        request.setValues(values);
+        return request;
+    }
+
+    
 }

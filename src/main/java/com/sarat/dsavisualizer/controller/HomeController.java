@@ -83,6 +83,17 @@ import java.util.Map;
  * flow/mincostflow and flow/hungarian — advanced trees and
  * matching &amp; flow).</p>
  *
+ * <p>Updated for Phase 28 (2026-11-23): the endpoint list now covers
+ * all 124 POST trace endpoints (Phase 28's string/bwt,
+ * string/lz77, string/bitap, range/bit2d, range/implicittreap,
+ * range/cartesiantree, matrix/rotatematrix, matrix/spiralorder
+ * and matrix/matrixmult — string v4, range v4 and matrices).</p>
+ *
+ * <p>Updated for Phase 29 (2026-11-23): the endpoint list now covers
+ * all 125 POST trace endpoints (Phase 29's graph/boruvka,
+ * matrix/search2d, matrix/setzeroes and matrix/wordsearch —
+ * MST + graph classics and matrices v2).</p>
+
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
 @RestController
@@ -136,6 +147,7 @@ public class HomeController {
                         "POST /api/graph/dijkstra",
                         "POST /api/graph/prim",
                         "POST /api/graph/kruskal",
+                        "POST /api/graph/boruvka",
                         "POST /api/graph/bellmanford",
                         "POST /api/graph/toposort",
                         "POST /api/graph/astar",
@@ -209,6 +221,18 @@ public class HomeController {
                         "POST /api/range/lazyseg",
                         "POST /api/range/pstkth",
                         "POST /api/range/sqrtdecomp2",
+                        "POST /api/string/bwt",
+                        "POST /api/string/lz77",
+                        "POST /api/string/bitap",
+                        "POST /api/range/bit2d",
+                        "POST /api/range/implicittreap",
+                        "POST /api/range/cartesiantree",
+                        "POST /api/matrix/rotatematrix",
+                        "POST /api/matrix/spiralorder",
+                        "POST /api/matrix/matrixmult",
+                        "POST /api/matrix/search2d",
+                        "POST /api/matrix/setzeroes",
+                        "POST /api/matrix/wordsearch",
                         "POST /api/backtracking/nqueens",
                         "POST /api/backtracking/sudoku",
                         "POST /api/skiplist/insert"

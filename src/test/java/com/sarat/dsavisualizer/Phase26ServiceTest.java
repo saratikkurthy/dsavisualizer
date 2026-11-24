@@ -568,7 +568,7 @@ class Phase26ServiceTest {
 
     // ---- 400s (controller validators, real services) ----
 
-    
+   
 
     private TraceRequest wordRequest(String word) {
         TraceRequest request = new TraceRequest();
@@ -580,5 +580,6 @@ class Phase26ServiceTest {
                               ResponseEntity<?> response) {
         assertEquals(expected, response.getStatusCode().value());
     }
+
 
 }

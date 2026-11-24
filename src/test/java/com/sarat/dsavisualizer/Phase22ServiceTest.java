@@ -114,8 +114,7 @@ class Phase22ServiceTest {
      * called). The parameter order is the constructor's: 41
      * Phase 1–21 params, then bidijkstra, ch, geohash
      * (44 total). */
-    
-
+   
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());

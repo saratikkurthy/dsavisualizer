@@ -522,7 +522,7 @@ class Phase25ServiceTest {
      * called). The parameter order is the constructor's: 57
      * Phase 1–24 params, then hld, centroid, persistentseg,
      * hopcroftkarp, mincostflow, hungarian (63 total). */
-
+    
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
