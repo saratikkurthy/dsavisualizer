@@ -444,6 +444,183 @@ public class GraphService {
     }
 
     /**
+     * Boruvka's minimum spanning tree (Phase 29). No start node.
+     * Each phase, every component picks its cheapest outgoing
+     * edge — SIMULTANEOUSLY: the picks are computed from the
+     * phase-start partition, then emitted in component order
+     * (smallest node first); an edge already added by an
+     * earlier pick in the same phase is skipped. A sequential
+     * implementation (union immediately and re-pick) gives a
+     * DIFFERENT trace — component {2} would not pick 1-2 at
+     * all. One build Step (line 2, data = [0, components]),
+     * one consider Step per pick (line 2) and one add or skip
+     * Step per pick (line 3), then a final Step with the total
+     * weight. {@code data} is [total weight, LIVE component
+     * count] — the count drops on every add, not at phase end;
+     * {@code sorted} holds the nodes with at least one MST
+     * edge; {@code mstEdges} holds the MST edges so far as
+     * [from, to] pairs in add order. Ties for a component's
+     * cheapest edge break to the smallest (from, to) pair.
+     */
+    public List<Step> boruvka(List<List<Integer>> graphEdges) {
+        List<Step> steps = new ArrayList<>();
+        if (graphEdges == null || graphEdges.isEmpty()) {
+            steps.add(mstStep(List.of(), List.of(), List.of(),
+                    List.of(), "Graph is empty.", LINE_FINAL,
+                    List.of(), List.of()));
+            return steps;
+        }
+        // Valid edges in input order: [from, to, weight].
+        List<int[]> edges = new ArrayList<>();
+        Set<Integer> nodeSet = new TreeSet<>();
+        for (List<Integer> pair : graphEdges) {
+            if (pair == null || (pair.size() != 2 && pair.size() != 3)) {
+                continue;
+            }
+            Integer u = pair.get(0);
+            Integer v = pair.get(1);
+            if (u == null || v == null || u.equals(v)) {
+                continue;
+            }
+            int w = pair.size() == 3 && pair.get(2) != null
+                    ? pair.get(2) : 1;
+            edges.add(new int[]{u, v, w});
+            nodeSet.add(u);
+            nodeSet.add(v);
+        }
+        List<Integer> nodes = new ArrayList<>(nodeSet);
+        if (nodes.isEmpty()) {
+            steps.add(mstStep(List.of(), List.of(), List.of(),
+                    List.of(), "Graph is empty.", LINE_FINAL,
+                    List.of(), List.of()));
+            return steps;
+        }
+        List<NodeDto> nodeDtos = snapshotNodes(nodes);
+        List<EdgeDto> edgeDtos = snapshotEdges(graphEdges);
+        // Union-find over node ids.
+        Map<Integer, Integer> ufParent = new HashMap<>();
+        for (int node : nodes) {
+            ufParent.put(node, node);
+        }
+        List<int[]> mst = new ArrayList<>(); // [from, to, weight]
+        List<List<Integer>> mstEdges = new ArrayList<>();
+        Set<Integer> inMstNodes = new TreeSet<>();
+        int totalWeight = 0;
+        int n = nodes.size();
+        steps.add(mstStep(List.of(0, n), List.of(), List.of(),
+                List.of(),
+                "Boruvka's: " + n + " components, each node alone. "
+                        + "Each component picks its cheapest outgoing "
+                        + "edge.",
+                LINE_COMPARE, nodeDtos, edgeDtos));
+        while (mstEdges.size() < n - 1) {
+            // Phase-start partition: group the nodes by their
+            // CURRENT root, in component order (smallest node
+            // first). The picks below are computed from this
+            // partition — the unions that follow must not
+            // affect them.
+            Map<Integer, List<Integer>> byRoot = new HashMap<>();
+            for (int node : nodes) {
+                byRoot.computeIfAbsent(findRoot(ufParent, node),
+                        k -> new ArrayList<>()).add(node);
+            }
+            List<List<Integer>> compList =
+                    new ArrayList<>(byRoot.values());
+            compList.sort(Comparator.comparingInt(c -> c.get(0)));
+            List<BoruvkaPick> picks = new ArrayList<>();
+            for (List<Integer> comp : compList) {
+                Set<Integer> inComp = new HashSet<>(comp);
+                int[] best = null;
+                for (int[] edge : edges) {
+                    int u = edge[0];
+                    int v = edge[1];
+                    int w = edge[2];
+                    if (inComp.contains(u) == inComp.contains(v)) {
+                        continue; // not an outgoing edge
+                    }
+                    if (best == null || w < best[2]
+                            || (w == best[2] && (u < best[0]
+                                    || (u == best[0]
+                                            && v < best[1])))) {
+                        best = new int[]{u, v, w};
+                    }
+                }
+                if (best != null) {
+                    picks.add(new BoruvkaPick(comp, best[0], best[1],
+                            best[2]));
+                }
+            }
+            if (picks.isEmpty()) {
+                // Disconnected: some component has no outgoing
+                // edge, so the MST can never complete.
+                break;
+            }
+            for (BoruvkaPick pick : picks) {
+                int u = pick.u;
+                int v = pick.v;
+                int w = pick.w;
+                steps.add(mstStep(
+                        List.of(totalWeight,
+                                liveComponentCount(ufParent, nodes)),
+                        List.of(u, v), new ArrayList<>(inMstNodes),
+                        copyMstEdges(mstEdges),
+                        "Consider edge " + u + "-" + v + " (weight "
+                                + w + ") — cheapest outgoing edge of "
+                                + "component " + compLabel(pick.comp)
+                                + ".",
+                        LINE_COMPARE, nodeDtos, edgeDtos));
+                boolean already = false;
+                for (int[] m : mst) {
+                    if (m[2] == w && ((m[0] == u && m[1] == v)
+                            || (m[0] == v && m[1] == u))) {
+                        already = true;
+                        break;
+                    }
+                }
+                if (already) {
+                    steps.add(mstStep(
+                            List.of(totalWeight,
+                                    liveComponentCount(ufParent, nodes)),
+                            List.of(u, v), new ArrayList<>(inMstNodes),
+                            copyMstEdges(mstEdges),
+                            "Skip edge " + u + "-" + v + " (weight "
+                                    + w + ") — already in the MST.",
+                            LINE_SWAP, nodeDtos, edgeDtos));
+                } else {
+                    union(ufParent, u, v);
+                    mst.add(new int[]{u, v, w});
+                    mstEdges.add(List.of(u, v));
+                    inMstNodes.add(u);
+                    inMstNodes.add(v);
+                    totalWeight += w;
+                    steps.add(mstStep(
+                            List.of(totalWeight,
+                                    liveComponentCount(ufParent, nodes)),
+                            List.of(u, v), new ArrayList<>(inMstNodes),
+                            copyMstEdges(mstEdges),
+                            "Add edge " + u + "-" + v + " (weight "
+                                    + w + ") to the MST. Total weight: "
+                                    + totalWeight + ". Components: "
+                                    + liveComponentCount(ufParent, nodes)
+                                    + ".",
+                            LINE_SWAP, nodeDtos, edgeDtos));
+                }
+            }
+        }
+        steps.add(mstStep(
+                List.of(totalWeight, liveComponentCount(ufParent, nodes)),
+                List.of(), new ArrayList<>(inMstNodes),
+                copyMstEdges(mstEdges),
+                mstEdges.size() == n - 1
+                        ? "MST total weight: " + totalWeight + "."
+                        : "Graph is disconnected — no spanning tree "
+                                + "exists. MST weight so far: "
+                                + totalWeight + ".",
+                LINE_FINAL, nodeDtos, edgeDtos));
+        return steps;
+    }
+
+    /**
      * Bellman-Ford shortest path from {@code start}. Weights MAY be
      * negative — that is the point: unlike Dijkstra it does not
      * finalise nodes early, so it finds the shorter path 0→1→2 = 1
@@ -1335,5 +1512,42 @@ public class GraphService {
         if (rootA != rootB) {
             parent.put(rootA, rootB);
         }
+    }
+
+    /** One component's cheapest outgoing edge for a Boruvka phase. */
+    private static class BoruvkaPick {
+        final List<Integer> comp;
+        final int u;
+        final int v;
+        final int w;
+
+        BoruvkaPick(List<Integer> comp, int u, int v, int w) {
+            this.comp = comp;
+            this.u = u;
+            this.v = v;
+            this.w = w;
+        }
+    }
+
+    /** "{0, 1, 2}" for a component's node list (ascending). */
+    private String compLabel(List<Integer> comp) {
+        StringBuilder sb = new StringBuilder("{");
+        for (int i = 0; i < comp.size(); i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(comp.get(i));
+        }
+        return sb.append("}").toString();
+    }
+
+    /** Number of distinct union-find roots over the nodes, live. */
+    private int liveComponentCount(Map<Integer, Integer> parent,
+                                   List<Integer> nodes) {
+        Set<Integer> roots = new HashSet<>();
+        for (int node : nodes) {
+            roots.add(findRoot(parent, node));
+        }
+        return roots.size();
     }
 }

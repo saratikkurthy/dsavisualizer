@@ -3,10 +3,14 @@ package com.sarat.dsavisualizer.controller;
 import com.sarat.dsavisualizer.model.Step;
 import com.sarat.dsavisualizer.model.TraceRequest;
 import com.sarat.dsavisualizer.model.TraceResponse;
+import com.sarat.dsavisualizer.service.AhoCorasick2Service;
 import com.sarat.dsavisualizer.service.AhoCorasickService;
 import com.sarat.dsavisualizer.service.AvlService;
 import com.sarat.dsavisualizer.service.BacktrackingService;
 import com.sarat.dsavisualizer.service.BidirectionalDijkstraService;
+import com.sarat.dsavisualizer.service.Bit2dService;
+import com.sarat.dsavisualizer.service.BitapService;
+import com.sarat.dsavisualizer.service.BwtService;
 import com.sarat.dsavisualizer.service.BloomFilterService;
 import com.sarat.dsavisualizer.service.BoyerMooreService;
 import com.sarat.dsavisualizer.service.BridgesService;
@@ -18,6 +22,7 @@ import com.sarat.dsavisualizer.service.ContractionHierarchiesService;
 import com.sarat.dsavisualizer.service.ConvexHullService;
 import com.sarat.dsavisualizer.service.CountingService;
 import com.sarat.dsavisualizer.service.DpService;
+import com.sarat.dsavisualizer.service.EertreeService;
 import com.sarat.dsavisualizer.service.FenwickTreeService;
 import com.sarat.dsavisualizer.service.GeohashService;
 import com.sarat.dsavisualizer.service.GraphService;
@@ -25,21 +30,29 @@ import com.sarat.dsavisualizer.service.HashTableService;
 import com.sarat.dsavisualizer.service.HeapService;
 import com.sarat.dsavisualizer.service.HeapSortService;
 import com.sarat.dsavisualizer.service.HuffmanService;
+import com.sarat.dsavisualizer.service.ImplicitTreapService;
+import com.sarat.dsavisualizer.service.CartesianTreeService;
 import com.sarat.dsavisualizer.service.CentroidService;
 import com.sarat.dsavisualizer.service.HldService;
 import com.sarat.dsavisualizer.service.HopcroftKarpService;
 import com.sarat.dsavisualizer.service.HungarianService;
 import com.sarat.dsavisualizer.service.InvertedIndexService;
 import com.sarat.dsavisualizer.service.MinCostFlowService;
+import com.sarat.dsavisualizer.service.MosService;
 import com.sarat.dsavisualizer.service.PersistentSegService;
+import com.sarat.dsavisualizer.service.PstKthService;
 import com.sarat.dsavisualizer.service.KdTreeService;
 import com.sarat.dsavisualizer.service.KmpService;
 import com.sarat.dsavisualizer.service.KnapsackService;
+import com.sarat.dsavisualizer.service.LazySegService;
+import com.sarat.dsavisualizer.service.LcpKasaiService;
 import com.sarat.dsavisualizer.service.LfuCacheService;
+import com.sarat.dsavisualizer.service.Lz77Service;
 import com.sarat.dsavisualizer.service.LineSweepService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.LruCacheService;
 import com.sarat.dsavisualizer.service.ManacherService;
+import com.sarat.dsavisualizer.service.MatrixMultService;
 import com.sarat.dsavisualizer.service.MaxFlowService;
 import com.sarat.dsavisualizer.service.PageRankService;
 import com.sarat.dsavisualizer.service.QueueService;
@@ -52,19 +65,30 @@ import com.sarat.dsavisualizer.service.TrafficDijkstraService;
 import com.sarat.dsavisualizer.service.TspService;
 import com.sarat.dsavisualizer.service.YenService;
 import com.sarat.dsavisualizer.service.RadixService;
+import com.sarat.dsavisualizer.service.RotateMatrixService;
 import com.sarat.dsavisualizer.service.RedBlackService;
+import com.sarat.dsavisualizer.service.SamLcsService;
+import com.sarat.dsavisualizer.service.SamService;
 import com.sarat.dsavisualizer.service.SccService;
+import com.sarat.dsavisualizer.service.Search2dService;
 import com.sarat.dsavisualizer.service.SearchService;
 import com.sarat.dsavisualizer.service.SegmentTreeService;
+import com.sarat.dsavisualizer.service.SetZeroesService;
 import com.sarat.dsavisualizer.service.ShellSortService;
 import com.sarat.dsavisualizer.service.SkipListService;
 import com.sarat.dsavisualizer.service.SortingService;
+import com.sarat.dsavisualizer.service.SparseTableService;
+import com.sarat.dsavisualizer.service.SpiralOrderService;
+import com.sarat.dsavisualizer.service.SqrtDecomp2Service;
+import com.sarat.dsavisualizer.service.SqrtDecompService;
 import com.sarat.dsavisualizer.service.StackService;
 import com.sarat.dsavisualizer.service.SudokuService;
 import com.sarat.dsavisualizer.service.SuffixArrayService;
+import com.sarat.dsavisualizer.service.SuffixTrieService;
 import com.sarat.dsavisualizer.service.TrieService;
 import com.sarat.dsavisualizer.service.UnionFindService;
 import com.sarat.dsavisualizer.service.VoronoiService;
+import com.sarat.dsavisualizer.service.WordSearchService;
 import com.sarat.dsavisualizer.service.ZAlgorithmService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -353,6 +377,30 @@ public class VisualizationController {
     private final HopcroftKarpService hopcroftKarpService;
     private final MinCostFlowService minCostFlowService;
     private final HungarianService hungarianService;
+    private final SamService samService;
+    private final EertreeService eertreeService;
+    private final LcpKasaiService lcpKasaiService;
+    private final SqrtDecompService sqrtDecompService;
+    private final MosService mosService;
+    private final SparseTableService sparseTableService;
+    private final AhoCorasick2Service ahoCorasick2Service;
+    private final SuffixTrieService suffixTrieService;
+    private final SamLcsService samLcsService;
+    private final LazySegService lazySegService;
+    private final PstKthService pstKthService;
+    private final SqrtDecomp2Service sqrtDecomp2Service;
+    private final BwtService bwtService;
+    private final Lz77Service lz77Service;
+    private final BitapService bitapService;
+    private final Bit2dService bit2dService;
+    private final ImplicitTreapService implicitTreapService;
+    private final CartesianTreeService cartesianTreeService;
+    private final RotateMatrixService rotateMatrixService;
+    private final SpiralOrderService spiralOrderService;
+    private final MatrixMultService matrixMultService;
+    private final Search2dService search2dService;
+    private final SetZeroesService setZeroesService;
+    private final WordSearchService wordSearchService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -416,7 +464,31 @@ public class VisualizationController {
                                    PersistentSegService persistentSegService,
                                    HopcroftKarpService hopcroftKarpService,
                                    MinCostFlowService minCostFlowService,
-                                   HungarianService hungarianService) {
+                                   HungarianService hungarianService,
+                                   SamService samService,
+                                   EertreeService eertreeService,
+                                   LcpKasaiService lcpKasaiService,
+                                   SqrtDecompService sqrtDecompService,
+                                   MosService mosService,
+                                   SparseTableService sparseTableService,
+                                   AhoCorasick2Service ahoCorasick2Service,
+                                   SuffixTrieService suffixTrieService,
+                                   SamLcsService samLcsService,
+                                   LazySegService lazySegService,
+                                   PstKthService pstKthService,
+                                   SqrtDecomp2Service sqrtDecomp2Service,
+                                   BwtService bwtService,
+                                   Lz77Service lz77Service,
+                                   BitapService bitapService,
+                                   Bit2dService bit2dService,
+                                   ImplicitTreapService implicitTreapService,
+                                   CartesianTreeService cartesianTreeService,
+                                   RotateMatrixService rotateMatrixService,
+                                   SpiralOrderService spiralOrderService,
+                                   MatrixMultService matrixMultService,
+                                   Search2dService search2dService,
+                                   SetZeroesService setZeroesService,
+                                   WordSearchService wordSearchService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -480,6 +552,30 @@ public class VisualizationController {
         this.hopcroftKarpService = hopcroftKarpService;
         this.minCostFlowService = minCostFlowService;
         this.hungarianService = hungarianService;
+        this.samService = samService;
+        this.eertreeService = eertreeService;
+        this.lcpKasaiService = lcpKasaiService;
+        this.sqrtDecompService = sqrtDecompService;
+        this.mosService = mosService;
+        this.sparseTableService = sparseTableService;
+        this.ahoCorasick2Service = ahoCorasick2Service;
+        this.suffixTrieService = suffixTrieService;
+        this.samLcsService = samLcsService;
+        this.lazySegService = lazySegService;
+        this.pstKthService = pstKthService;
+        this.sqrtDecomp2Service = sqrtDecomp2Service;
+        this.bwtService = bwtService;
+        this.lz77Service = lz77Service;
+        this.bitapService = bitapService;
+        this.bit2dService = bit2dService;
+        this.implicitTreapService = implicitTreapService;
+        this.cartesianTreeService = cartesianTreeService;
+        this.rotateMatrixService = rotateMatrixService;
+        this.spiralOrderService = spiralOrderService;
+        this.matrixMultService = matrixMultService;
+        this.search2dService = search2dService;
+        this.setZeroesService = setZeroesService;
+        this.wordSearchService = wordSearchService;
     }
 
     @GetMapping("/health")
@@ -863,6 +959,19 @@ public class VisualizationController {
         List<Step> steps = graphService.kruskal(request.getGraphEdges());
         return ResponseEntity.ok(
                 new TraceResponse("Graph Kruskal's", steps));
+    }
+
+    // ---- Graph Boruvka's MST (Phase 29) ----
+
+    @PostMapping("/graph/boruvka")
+    public ResponseEntity<?> graphBoruvka(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBoruvka(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = graphService.boruvka(request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Graph Boruvka's", steps));
     }
 
     // ---- Graph Bellman-Ford / Topological sort (Phase 10) ----
@@ -1810,6 +1919,333 @@ public class VisualizationController {
                 "Hungarian Algorithm", steps));
     }
 
+    // ---- String algorithms v2 (Phase 26) ----
+
+    @PostMapping("/string/sam")
+    public ResponseEntity<?> stringSam(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSam(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = samService.sam(request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Suffix Automaton", steps));
+    }
+
+    @PostMapping("/string/eertree")
+    public ResponseEntity<?> stringEertree(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateEertree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = eertreeService.eertree(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Palindromic Tree", steps));
+    }
+
+    @PostMapping("/string/lcpkasai")
+    public ResponseEntity<?> stringLcpKasai(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLcpKasai(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = lcpKasaiService.lcpKasai(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Suffix Array & LCP", steps));
+    }
+
+    // ---- Range queries v2 (Phase 26) ----
+
+    @PostMapping("/range/sqrtdecomp")
+    public ResponseEntity<?> rangeSqrtDecomp(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSqrtDecomp(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sqrtDecompService.sqrtDecomp(
+                request.getWord(), request.getValues(),
+                request.getIndex(), request.getCapacity());
+        return ResponseEntity.ok(new TraceResponse(
+                "Sqrt Decomposition", steps));
+    }
+
+    @PostMapping("/range/mos")
+    public ResponseEntity<?> rangeMos(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateMos(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = mosService.mos(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Mo's Algorithm", steps));
+    }
+
+    @PostMapping("/range/sparsetable")
+    public ResponseEntity<?> rangeSparseTable(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSparseTable(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sparseTableService.sparseTable(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Sparse Table", steps));
+    }
+
+    // ---- String matching v3 (Phase 27) ----
+
+    @PostMapping("/string/ahocorasick2")
+    public ResponseEntity<?> stringAhoCorasick2(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateAhoCorasick2(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = ahoCorasick2Service.ahoCorasick2(
+                request.getWord(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse(
+                "Aho-Corasick v2", steps));
+    }
+
+    @PostMapping("/string/suffixtrie")
+    public ResponseEntity<?> stringSuffixTrie(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSuffixTrie(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = suffixTrieService.suffixTrie(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Suffix Trie", steps));
+    }
+
+    @PostMapping("/string/samlcs")
+    public ResponseEntity<?> stringSamLcs(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSamLcs(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = samLcsService.samLcs(
+                request.getWord(), request.getWords().get(0));
+        return ResponseEntity.ok(new TraceResponse(
+                "Longest Common Substring", steps));
+    }
+
+    // ---- Range queries v3 (Phase 27) ----
+
+    @PostMapping("/range/lazyseg")
+    public ResponseEntity<?> rangeLazySeg(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLazySeg(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = lazySegService.lazySeg(
+                request.getWord(), request.getValues(),
+                request.getIndex());
+        return ResponseEntity.ok(new TraceResponse(
+                "Lazy Segment Tree", steps));
+    }
+
+    @PostMapping("/range/pstkth")
+    public ResponseEntity<?> rangePstKth(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validatePstKth(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = pstKthService.pstKth(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Persistent Segment Tree: K-th Smallest", steps));
+    }
+
+    @PostMapping("/range/sqrtdecomp2")
+    public ResponseEntity<?> rangeSqrtDecomp2(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSqrtDecomp2(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = sqrtDecomp2Service.sqrtDecomp2(
+                request.getWord(), request.getValues(),
+                request.getIndex());
+        return ResponseEntity.ok(new TraceResponse(
+                "Sqrt Decomposition v2", steps));
+    }
+
+    // ---- String matching v4 (Phase 28) ----
+
+    @PostMapping("/string/bwt")
+    public ResponseEntity<?> stringBwt(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBwt(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bwtService.bwt(request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Burrows-Wheeler Transform", steps));
+    }
+
+    @PostMapping("/string/lz77")
+    public ResponseEntity<?> stringLz77(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateLz77(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = lz77Service.lz77(request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "LZ77 Compression", steps));
+    }
+
+    @PostMapping("/string/bitap")
+    public ResponseEntity<?> stringBitap(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBitap(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bitapService.bitap(
+                request.getWord(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse(
+                "Bitap (Shift-Or)", steps));
+    }
+
+    // ---- Range queries v4 (Phase 28) ----
+
+    @PostMapping("/range/bit2d")
+    public ResponseEntity<?> rangeBit2d(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateBit2d(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = bit2dService.bit2d(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "2D Fenwick Tree", steps));
+    }
+
+    @PostMapping("/range/implicittreap")
+    public ResponseEntity<?> rangeImplicitTreap(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateImplicitTreap(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = implicitTreapService.implicitTreap(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Implicit Treap", steps));
+    }
+
+    @PostMapping("/range/cartesiantree")
+    public ResponseEntity<?> rangeCartesianTree(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateCartesianTree(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = cartesianTreeService.cartesianTree(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Cartesian Tree", steps));
+    }
+
+    // ---- Matrices (Phase 28) ----
+
+    @PostMapping("/matrix/rotatematrix")
+    public ResponseEntity<?> matrixRotateMatrix(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateRotateMatrix(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = rotateMatrixService.rotateMatrix(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Rotate Matrix", steps));
+    }
+
+    @PostMapping("/matrix/spiralorder")
+    public ResponseEntity<?> matrixSpiralOrder(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSpiralOrder(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = spiralOrderService.spiralOrder(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Spiral Order", steps));
+    }
+
+    @PostMapping("/matrix/matrixmult")
+    public ResponseEntity<?> matrixMatrixMult(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateMatrixMult(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = matrixMultService.matrixMult(
+                request.getWord(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse(
+                "Matrix Multiplication", steps));
+    }
+
+    // ---- Matrices v2 (Phase 29) ----
+
+    @PostMapping("/matrix/search2d")
+    public ResponseEntity<?> matrixSearch2d(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSearch2d(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = search2dService.search2d(
+                request.getWord(), request.getValues());
+        return ResponseEntity.ok(new TraceResponse(
+                "Search a 2D Matrix", steps));
+    }
+
+    @PostMapping("/matrix/setzeroes")
+    public ResponseEntity<?> matrixSetZeroes(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateSetZeroes(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = setZeroesService.setZeroes(request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Set Matrix Zeroes", steps));
+    }
+
+    @PostMapping("/matrix/wordsearch")
+    public ResponseEntity<?> matrixWordSearch(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateWordSearch(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = wordSearchService.wordSearch(
+                request.getWord(), request.getWords());
+        return ResponseEntity.ok(new TraceResponse(
+                "Word Search", steps));
+    }
+
     // ---- Validation helpers ----
 
     /** 400 when values are missing or empty. Null means "no error". */
@@ -1912,6 +2348,20 @@ public class VisualizationController {
                     .body(Map.of("error", "graphEdges must not be empty"));
         }
         return validateWeights(request, "Kruskal's");
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty or any weight is <= 0
+     * (Boruvka's needs non-negative weights, like Kruskal's).
+     * No start node. Null means "no error".
+     */
+    private ResponseEntity<?> validateBoruvka(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        return validateWeights(request, "Boruvka's");
     }
 
     /**
@@ -4155,6 +4605,881 @@ public class VisualizationController {
             }
         }
         return null;
+    }
+
+    private ResponseEntity<?> validateSam(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sam needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "sam needs lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateEertree(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "eertree needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "eertree needs lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateLcpKasai(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lcpkasai needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "lcpkasai needs lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    /** Parses the array in {@code word}; null when it is not comma-separated ints. */
+    private int[] parseArrayField(String word) {
+        if (word == null || word.isBlank()) {
+            return null;
+        }
+        String[] parts = word.trim().split(",", -1);
+        if (parts.length < 1 || parts.length > 16) {
+            return null;
+        }
+        int[] result = new int[parts.length];
+        try {
+            for (int i = 0; i < parts.length; i++) {
+                result[i] = Integer.parseInt(parts[i].trim());
+                if (result[i] < -999 || result[i] > 999) {
+                    return null;
+                }
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return result;
+    }
+
+    private ResponseEntity<?> validateSqrtDecomp(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition needs an array of "
+                                    + "1..16 numbers, each between "
+                                    + "-999 and 999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 2) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition needs the query "
+                                    + "range as [l, r]"));
+        }
+        int left = request.getValues().get(0);
+        int right = request.getValues().get(1);
+        if (left < 0 || right >= array.length || left > right) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition query range [" + left
+                                    + ", " + right + "] is out of "
+                                    + "range"));
+        }
+        if (request.getIndex() == null || request.getIndex() < 0
+                || request.getIndex() >= array.length
+                || request.getCapacity() == null
+                || request.getCapacity() < -999
+                || request.getCapacity() > 999) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition needs an update "
+                                    + "index in range and a value "
+                                    + "between -999 and 999"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateMos(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Mo's algorithm needs an array of 1..16 "
+                                    + "numbers, each between -999 "
+                                    + "and 999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() < 2
+                || request.getValues().size() % 2 != 0
+                || request.getValues().size() > 16) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "Mo's algorithm needs the queries as "
+                                    + "flattened [l, r] pairs"));
+        }
+        for (int i = 0; i < request.getValues().size(); i += 2) {
+            int left = request.getValues().get(i);
+            int right = request.getValues().get(i + 1);
+            if (left < 0 || right >= array.length || left > right) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "Mo's algorithm query range [" + left
+                                        + ", " + right + "] is out "
+                                        + "of range"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateSparseTable(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sparse table needs an array of 1..16 "
+                                    + "numbers, each between -999 "
+                                    + "and 999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 4) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sparse table needs two query ranges "
+                                    + "as [l1, r1, l2, r2]"));
+        }
+        for (int i = 0; i < 4; i += 2) {
+            int left = request.getValues().get(i);
+            int right = request.getValues().get(i + 1);
+            if (left < 0 || right >= array.length || left > right) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "sparse table query range [" + left
+                                        + ", " + right + "] is out "
+                                        + "of range"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateAhoCorasick2(TraceRequest request) {
+        if (request == null || request.getWords() == null
+                || request.getWords().isEmpty()
+                || request.getWords().size() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "aho-corasick v2 needs 1..8 patterns"));
+        }
+        for (String pattern : request.getWords()) {
+            if (pattern == null || pattern.isEmpty()
+                    || pattern.length() > 8) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "aho-corasick v2 needs each pattern "
+                                        + "to be 1..8 letters"));
+            }
+            for (char c : pattern.toCharArray()) {
+                if (c < 'a' || c > 'z') {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "aho-corasick v2 needs lowercase "
+                                            + "a-z only"));
+                }
+            }
+        }
+        if (request.getWord() == null || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "aho-corasick v2 needs a text of at most "
+                                    + "12 characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "aho-corasick v2 needs lowercase "
+                                        + "a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateSuffixTrie(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "suffix trie needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "suffix trie needs lowercase a-z "
+                                        + "only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateSamLcs(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "longest common substring needs S1 of at "
+                                    + "most 12 characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "longest common substring needs "
+                                        + "lowercase a-z only"));
+            }
+        }
+        if (request.getWords() == null
+                || request.getWords().size() != 1
+                || request.getWords().get(0) == null
+                || request.getWords().get(0).isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "longest common substring needs exactly "
+                                    + "one S2 string"));
+        }
+        if (request.getWords().get(0).length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "longest common substring needs S2 of at "
+                                    + "most 12 characters"));
+        }
+        for (char c : request.getWords().get(0).toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "longest common substring needs "
+                                        + "lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateLazySeg(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lazy segment tree needs an array of "
+                                    + "1..16 numbers, each between "
+                                    + "-999 and 999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 6) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lazy segment tree needs the update "
+                                    + "range and the two query ranges "
+                                    + "as [ul, ur, q1l, q1r, q2l, q2r]"));
+        }
+        for (int i = 0; i < 6; i += 2) {
+            int left = request.getValues().get(i);
+            int right = request.getValues().get(i + 1);
+            if (left < 0 || right >= array.length || left > right) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "lazy segment tree range [" + left
+                                        + ", " + right + "] is out "
+                                        + "of range"));
+            }
+        }
+        if (request.getIndex() == null || request.getIndex() < -999
+                || request.getIndex() > 999) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lazy segment tree needs an add amount "
+                                    + "between -999 and 999"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validatePstKth(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "persistent k-th smallest needs an array "
+                                    + "of 1..16 numbers, each between "
+                                    + "-999 and 999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 6) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "persistent k-th smallest needs two "
+                                    + "queries as "
+                                    + "[l1, r1, k1, l2, r2, k2]"));
+        }
+        for (int i = 0; i < 6; i += 3) {
+            int left = request.getValues().get(i);
+            int right = request.getValues().get(i + 1);
+            int k = request.getValues().get(i + 2);
+            if (left < 0 || right >= array.length || left > right
+                    || k < 1 || k > right - left + 1) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "persistent k-th smallest query ["
+                                        + left + ", " + right + "] "
+                                        + "k=" + k + " is out of "
+                                        + "range"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateSqrtDecomp2(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition v2 needs an array of "
+                                    + "1..16 numbers, each between "
+                                    + "-999 and 999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 6) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition v2 needs the update "
+                                    + "range and the two query ranges "
+                                    + "as [ul, ur, q1l, q1r, q2l, q2r]"));
+        }
+        for (int i = 0; i < 6; i += 2) {
+            int left = request.getValues().get(i);
+            int right = request.getValues().get(i + 1);
+            if (left < 0 || right >= array.length || left > right) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "sqrt decomposition v2 range [" + left
+                                        + ", " + right + "] is out "
+                                        + "of range"));
+            }
+        }
+        if (request.getIndex() == null || request.getIndex() < -999
+                || request.getIndex() > 999) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "sqrt decomposition v2 needs an add "
+                                    + "amount between -999 and 999"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateBwt(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bwt needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "bwt needs lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateLz77(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "lz77 needs a word of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "lz77 needs lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateBitap(TraceRequest request) {
+        if (request == null || request.getWord() == null
+                || request.getWord().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "word must not be empty"));
+        }
+        if (request.getWord().length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bitap needs a text of at most 12 "
+                                    + "characters"));
+        }
+        for (char c : request.getWord().toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "bitap needs lowercase a-z only"));
+            }
+        }
+        if (request.getWords() == null
+                || request.getWords().size() != 1
+                || request.getWords().get(0) == null
+                || request.getWords().get(0).isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bitap needs exactly one pattern"));
+        }
+        if (request.getWords().get(0).length() > 8) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "bitap needs a pattern of at most 8 "
+                                    + "characters"));
+        }
+        for (char c : request.getWords().get(0).toCharArray()) {
+            if (c < 'a' || c > 'z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "bitap needs the pattern in "
+                                        + "lowercase a-z only"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateBit2d(TraceRequest request) {
+        int[][] matrix = parseMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "2D fenwick tree needs a matrix of "
+                                    + "2..6 rows and 2..6 columns, "
+                                    + "each cell between -999 and "
+                                    + "999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 11) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "2D fenwick tree needs the update and "
+                                    + "the two query rectangles as "
+                                    + "[ux, uy, delta, q1x1, q1y1, "
+                                    + "q1x2, q1y2, q2x1, q2y1, q2x2, "
+                                    + "q2y2]"));
+        }
+        int rows = matrix.length;
+        int cols = matrix[0].length;
+        int ux = request.getValues().get(0);
+        int uy = request.getValues().get(1);
+        int delta = request.getValues().get(2);
+        if (ux < 0 || ux >= rows || uy < 0 || uy >= cols) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "2D fenwick tree update (" + ux + ", "
+                                    + uy + ") is out of range"));
+        }
+        if (delta < -99 || delta > 99) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "2D fenwick tree needs a delta between "
+                                    + "-99 and 99"));
+        }
+        for (int i = 3; i < 11; i += 4) {
+            int x1 = request.getValues().get(i);
+            int y1 = request.getValues().get(i + 1);
+            int x2 = request.getValues().get(i + 2);
+            int y2 = request.getValues().get(i + 3);
+            if (x1 < 0 || x2 >= rows || y1 < 0 || y2 >= cols
+                    || x1 > x2 || y1 > y2) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "2D fenwick tree query rect ("
+                                        + x1 + ", " + y1 + ")-("
+                                        + x2 + ", " + y2 + ") is out "
+                                        + "of range"));
+            }
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateImplicitTreap(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "implicit treap needs an array of "
+                                    + "1..16 numbers, each between "
+                                    + "-999 and 999"));
+        }
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (int v : array) {
+            if (!seen.add(v)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "implicit treap needs distinct "
+                                        + "values (node ids are the "
+                                        + "values)"));
+            }
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 3) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "implicit treap needs the split "
+                                    + "position and the reverse range "
+                                    + "as [splitPos, l-1, r]"));
+        }
+        int splitPos = request.getValues().get(0);
+        int l = request.getValues().get(1) + 1;
+        int r = request.getValues().get(2);
+        if (splitPos < 0 || splitPos > array.length
+                || l < 1 || r > array.length || l > r) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "implicit treap split " + splitPos
+                                    + " or reverse [" + l + ", " + r
+                                    + "] is out of range"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateCartesianTree(TraceRequest request) {
+        int[] array = parseArrayField(
+                request == null ? null : request.getWord());
+        if (array == null || array.length < 2 || array.length > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "cartesian tree needs an array of "
+                                    + "2..12 numbers, each between "
+                                    + "-999 and 999"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateRotateMatrix(TraceRequest request) {
+        int[][] matrix = parseMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "rotate matrix needs a matrix of 2..6 "
+                                    + "rows and 2..6 columns, each "
+                                    + "cell between -999 and 999"));
+        }
+        if (matrix.length != matrix[0].length) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "rotate matrix needs a square matrix"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateSpiralOrder(TraceRequest request) {
+        int[][] matrix = parseMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "spiral order needs a matrix of 2..6 "
+                                    + "rows and 2..6 columns, each "
+                                    + "cell between -999 and 999"));
+        }
+        return null;
+    }
+
+    private ResponseEntity<?> validateMatrixMult(TraceRequest request) {
+        int[][] a = parseMatrixField(
+                request == null ? null : request.getWord());
+        if (a == null || a.length < 2 || a.length > 4
+                || a[0].length < 2 || a[0].length > 4) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "matrix multiplication needs A as a "
+                                    + "2..4 by 2..4 matrix, each "
+                                    + "cell between -999 and 999"));
+        }
+        if (request.getWords() == null
+                || request.getWords().size() != 1) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "matrix multiplication needs exactly "
+                                    + "one B matrix"));
+        }
+        int[][] b = parseMatrixField(request.getWords().get(0));
+        if (b == null || b.length < 2 || b.length > 4
+                || b[0].length < 2 || b[0].length > 4) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "matrix multiplication needs B as a "
+                                    + "2..4 by 2..4 matrix, each "
+                                    + "cell between -999 and 999"));
+        }
+        if (a[0].length != b.length) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "matrix multiplication needs A's "
+                                    + "columns to equal B's rows"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the matrix is missing/unparseable, values is not
+     * exactly [target], the target is outside -999..999, or the
+     * matrix breaks the sorted invariant (each row strictly
+     * ascending, each row's first element greater than the
+     * previous row's last — the flattened binary search depends
+     * on it). Null means "no error".
+     */
+    private ResponseEntity<?> validateSearch2d(TraceRequest request) {
+        int[][] matrix = parseMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "search a 2D matrix needs a matrix of "
+                                    + "2..6 rows and 2..6 columns, "
+                                    + "each cell between -999 and "
+                                    + "999"));
+        }
+        if (request.getValues() == null
+                || request.getValues().size() != 1
+                || request.getValues().get(0) == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "search a 2D matrix needs exactly one "
+                                    + "target value"));
+        }
+        int target = request.getValues().get(0);
+        if (target < -999 || target > 999) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "search a 2D matrix needs a target "
+                                    + "between -999 and 999"));
+        }
+        for (int r = 0; r < matrix.length; r++) {
+            for (int c = 1; c < matrix[r].length; c++) {
+                if (matrix[r][c] <= matrix[r][c - 1]) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "search a 2D matrix needs each "
+                                            + "row sorted ascending"));
+                }
+            }
+            if (r > 0 && matrix[r][0]
+                    <= matrix[r - 1][matrix[r - 1].length - 1]) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "search a 2D matrix needs each "
+                                        + "row's first element greater "
+                                        + "than the previous row's "
+                                        + "last"));
+            }
+        }
+        return null;
+    }
+
+    /** 400 when the matrix is missing/unparseable. Null means "no error". */
+    private ResponseEntity<?> validateSetZeroes(TraceRequest request) {
+        int[][] matrix = parseMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "set matrix zeroes needs a matrix of "
+                                    + "2..6 rows and 2..6 columns, "
+                                    + "each cell between -999 and "
+                                    + "999"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the board is missing/unparseable (2..6 x 2..6 of
+     * single uppercase letters A-Z), words is not exactly one
+     * word, or the word is not 1..12 uppercase letters A-Z.
+     * Null means "no error".
+     */
+    private ResponseEntity<?> validateWordSearch(TraceRequest request) {
+        char[][] board = parseBoardField(
+                request == null ? null : request.getWord());
+        if (board == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "word search needs a board of 2..6 "
+                                    + "rows and 2..6 columns of "
+                                    + "single uppercase letters A-Z"));
+        }
+        if (request.getWords() == null
+                || request.getWords().size() != 1) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "word search needs exactly one word"));
+        }
+        String target = request.getWords().get(0);
+        if (target == null || target.isEmpty() || target.length() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "word search needs a word of 1..12 "
+                                    + "letters"));
+        }
+        for (int i = 0; i < target.length(); i++) {
+            char ch = target.charAt(i);
+            if (ch < 'A' || ch > 'Z') {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "word search needs a word of "
+                                        + "uppercase letters A-Z"));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Parses "A,B,C;D,E,F" into a char board (2..6 rows,
+     * 2..6 columns, single uppercase letters A-Z, rows all
+     * the same length), or null.
+     */
+    private char[][] parseBoardField(String word) {
+        if (word == null || word.isBlank()) {
+            return null;
+        }
+        String[] rows = word.trim().split(";", -1);
+        if (rows.length < 2 || rows.length > 6) {
+            return null;
+        }
+        char[][] result = null;
+        for (int i = 0; i < rows.length; i++) {
+            String[] cells = rows[i].trim().split(",", -1);
+            if (result == null) {
+                if (cells.length < 2 || cells.length > 6) {
+                    return null;
+                }
+                result = new char[rows.length][cells.length];
+            } else if (cells.length != result[0].length) {
+                return null;
+            }
+            for (int j = 0; j < cells.length; j++) {
+                String cell = cells[j].trim();
+                if (cell.length() != 1 || cell.charAt(0) < 'A'
+                        || cell.charAt(0) > 'Z') {
+                    return null;
+                }
+                result[i][j] = cell.charAt(0);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Parses "1,2,3;4,5,6" into an int matrix (2..6 rows,
+     * 2..6 columns, cells -999..999, rows all the same
+     * length), or null. Same shape as validateHungarian's
+     * parser, generalized to rectangles.
+     */
+    private int[][] parseMatrixField(String word) {
+        if (word == null || word.isBlank()) {
+            return null;
+        }
+        String[] rows = word.trim().split(";", -1);
+        if (rows.length < 2 || rows.length > 6) {
+            return null;
+        }
+        int[][] result = null;
+        for (int i = 0; i < rows.length; i++) {
+            String[] cells = rows[i].trim().split(",", -1);
+            if (result == null) {
+                if (cells.length < 2 || cells.length > 6) {
+                    return null;
+                }
+                result = new int[rows.length][cells.length];
+            } else if (cells.length != result[0].length) {
+                return null;
+            }
+            try {
+                for (int j = 0; j < cells.length; j++) {
+                    int v = Integer.parseInt(cells[j].trim());
+                    if (v < -999 || v > 999) {
+                        return null;
+                    }
+                    result[i][j] = v;
+                }
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return result;
     }
 
     /** Parses "3,1,4,1,5" into an int array, or null. */

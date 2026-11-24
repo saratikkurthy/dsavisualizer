@@ -115,7 +115,6 @@ class Phase22ServiceTest {
      * Phase 1–21 params, then bidijkstra, ch, geohash
      * (44 total). */
    
-
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
@@ -496,5 +495,6 @@ class Phase22ServiceTest {
         assertEquals(DEMO_GEOHASH_MESSAGE, lastStep(steps).getMessage());
     }
 
+    // ---- 400 tests (controller validation) ----
 
 }

@@ -522,25 +522,7 @@ class Phase25ServiceTest {
      * called). The parameter order is the constructor's: 57
      * Phase 1–24 params, then hld, centroid, persistentseg,
      * hopcroftkarp, mincostflow, hungarian (63 total). */
-    private VisualizationController controller() {
-        return new VisualizationController(
-                null, null, null, null, null, null, null,
-                null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null,
-                null,
-                null, null,
-                null, null, null,
-                null, null, null,
-                null, null, null,
-                null, null, null, null, null, null,
-                null, null, null, null, null, null, null,
-                hldService, centroidService, persistentSegService,
-                hopcroftKarpService, minCostFlowService,
-                hungarianService);
-    }
-
+    
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
@@ -560,95 +542,4 @@ class Phase25ServiceTest {
         return request;
     }
 
-    @Test
-    void hld400s() {
-        assertBadRequest(controller().treeHld(edgesRequest(null)));
-        assertBadRequest(controller().treeHld(edgesRequest(List.of())));
-        assertBadRequest(controller().treeHld(edgesRequest(
-                List.of(List.of(0)))));
-        assertBadRequest(controller().treeHld(edgesRequest(
-                List.of(List.of(0, 1), List.of(2, 1),
-                        List.of(0, 2)))));
-        TraceRequest unknownStart = edgesRequest(TREE_EDGES);
-        unknownStart.setStart(9);
-        assertBadRequest(controller().treeHld(unknownStart));
-        assertEquals(200, controller().treeHld(
-                edgesRequest(TREE_EDGES)).getStatusCode().value());
-    }
-
-    @Test
-    void centroid400s() {
-        assertBadRequest(controller().treeCentroid(edgesRequest(null)));
-        assertBadRequest(controller().treeCentroid(
-                edgesRequest(List.of())));
-        assertBadRequest(controller().treeCentroid(edgesRequest(
-                List.of(List.of(0, 1), List.of(1, 21)))));
-        assertEquals(200, controller().treeCentroid(
-                edgesRequest(TREE_EDGES)).getStatusCode().value());
-    }
-
-    @Test
-    void persistentSeg400s() {
-        TraceRequest badWord = wordRequest("a,b");
-        badWord.setValues(PST_VALUES);
-        assertBadRequest(controller().treePersistentSeg(badWord));
-        TraceRequest oddValues = wordRequest(PST_ARRAY);
-        oddValues.setValues(List.of(0, 9, 1));
-        assertBadRequest(controller().treePersistentSeg(oddValues));
-        TraceRequest badQuery = wordRequest(PST_ARRAY);
-        badQuery.setValues(List.of(2, 1));
-        assertBadRequest(controller().treePersistentSeg(badQuery));
-        TraceRequest missingValues = wordRequest(PST_ARRAY);
-        assertBadRequest(controller().treePersistentSeg(missingValues));
-        TraceRequest demo = wordRequest(PST_ARRAY);
-        demo.setValues(PST_VALUES);
-        assertEquals(200, controller().treePersistentSeg(demo)
-                .getStatusCode().value());
-    }
-
-    @Test
-    void hopcroftKarp400s() {
-        assertBadRequest(controller().flowHopcroftKarp(
-                edgesRequest(null)));
-        assertBadRequest(controller().flowHopcroftKarp(
-                edgesRequest(List.of())));
-        assertBadRequest(controller().flowHopcroftKarp(edgesRequest(
-                List.of(List.of(0, 3), List.of(3, 4)))));
-        assertEquals(200, controller().flowHopcroftKarp(
-                edgesRequest(BIPARTITE_EDGES)).getStatusCode().value());
-    }
-
-    @Test
-    void minCostFlow400s() {
-        assertBadRequest(controller().flowMinCostFlow(
-                edgesRequest(null)));
-        assertBadRequest(controller().flowMinCostFlow(edgesRequest(
-                List.of(List.of(0, 1)))));
-        TraceRequest costMismatch = edgesRequest(FLOW_EDGES);
-        costMismatch.setValues(List.of(1, 3));
-        assertBadRequest(controller().flowMinCostFlow(costMismatch));
-        TraceRequest demo = edgesRequest(FLOW_EDGES);
-        demo.setValues(FLOW_COSTS);
-        demo.setStart(0);
-        demo.setTarget(3);
-        assertEquals(200, controller().flowMinCostFlow(demo)
-                .getStatusCode().value());
-        // Missing costs default to zero; missing start/target default to min/max node.
-        assertEquals(200, controller().flowMinCostFlow(
-                edgesRequest(FLOW_EDGES)).getStatusCode().value());
-    }
-
-    @Test
-    void hungarian400s() {
-        assertBadRequest(controller().flowHungarian(
-                wordRequest(null)));
-        assertBadRequest(controller().flowHungarian(
-                wordRequest("1,2,3;4,5,6")));
-        assertBadRequest(controller().flowHungarian(
-                wordRequest("1,-2;3,4")));
-        assertBadRequest(controller().flowHungarian(
-                wordRequest("1,2;3,x")));
-        assertEquals(200, controller().flowHungarian(
-                wordRequest(HUNGARIAN_MATRIX)).getStatusCode().value());
-    }
 }

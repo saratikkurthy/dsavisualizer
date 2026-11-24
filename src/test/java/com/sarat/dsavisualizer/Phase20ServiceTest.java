@@ -105,7 +105,6 @@ class Phase20ServiceTest {
      * the Phase 20 ones (validation 400s before any service is
      * called). The parameter order is the constructor's: 35
      * Phase 1–19 params, then maxFlow, lfu, sudoku (38 total). */
-   
 
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
@@ -327,5 +326,6 @@ class Phase20ServiceTest {
     }
 
     // ---- 400 tests (controller validation) ----
+
 
 }

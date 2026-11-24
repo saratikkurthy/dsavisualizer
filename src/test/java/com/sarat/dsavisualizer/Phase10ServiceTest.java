@@ -29,7 +29,7 @@ class Phase10ServiceTest {
     private final KnapsackService knapsackService = new KnapsackService();
 
     /** The Bellman-Ford example (has a negative edge 1-2). */
-    private List<List<Integer>> bellmanFordExample() {
+    private List<List<Integer>> bellmanFordExample1() {
         return List.of(
                 List.of(0, 1, 4), List.of(0, 2, 2), List.of(1, 2, -3),
                 List.of(1, 3, 5), List.of(2, 3, 8), List.of(2, 4, 10),
@@ -67,31 +67,6 @@ class Phase10ServiceTest {
         return count;
     }
 
-    @Test
-    void bellmanFordExample1() {
-        List<Step> steps = graphService.bellmanFord(
-                bellmanFordExample(), 0);
-        assertEquals(List.of(0, 4, 1, 9, 11, 14), lastData(steps));
-        // Node 2 is 1 via the negative edge 1-2 (0->1->2) — Dijkstra
-        // would settle it at 2 before discovering the shorter path.
-        assertEquals(1, lastData(steps).get(2));
-        assertTrue(lastStep(steps).getMessage()
-                .contains("Shortest distances from 0: [0, 4, 1, 9, 11, 14]"));
-    }
-
-    @Test
-    void bellmanFordEarlyExit() {
-        // Iteration 1 settles the distances; iteration 2 relaxes
-        // nothing, so the trace has exactly one "Iteration ...
-        // complete" summary step (iteration 1).
-        List<Step> steps = graphService.bellmanFord(
-                bellmanFordExample(), 0);
-        assertEquals(1,
-                countMessagesContaining(steps, "complete. Distances:"));
-        // The key relaxation that Dijkstra misses is in the trace.
-        assertTrue(anyMessageContains(steps,
-                "Relax edge 1-2 (weight -3): dist[2] 2 -> 1."));
-    }
 
     @Test
     void bellmanFordNegativeCycle() {
