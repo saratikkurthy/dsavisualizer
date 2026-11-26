@@ -89,10 +89,12 @@ import java.util.Map;
  * range/cartesiantree, matrix/rotatematrix, matrix/spiralorder
  * and matrix/matrixmult — string v4, range v4 and matrices).</p>
  *
- * <p>Updated for Phase 29 (2026-11-23): the endpoint list now covers
- * all 125 POST trace endpoints (Phase 29's graph/boruvka,
- * matrix/search2d, matrix/setzeroes and matrix/wordsearch —
- * MST + graph classics and matrices v2).</p>
+ * <p>Updated for Phase 31 (2026-11-24): the endpoint list now covers
+ * all 134 POST trace endpoints (Phase 31's graph/dinic,
+ * graph/johnson, graph/stoerwagner, matrix/transpose,
+ * matrix/diagonaltraverse and matrix/maximalsquare —
+ * Graphs v3 and Matrices v3). The Phase 29 comment said 125;
+ * the list itself already held 128.</p>
 
  * <p>No pom change needed — spring-boot-starter-web only.</p>
  */
@@ -155,6 +157,9 @@ public class HomeController {
                         "POST /api/graph/floydwarshall",
                         "POST /api/graph/scc",
                         "POST /api/graph/maxflow",
+                        "POST /api/graph/dinic",
+                        "POST /api/graph/johnson",
+                        "POST /api/graph/stoerwagner",
                         "POST /api/flow/hopcroftkarp",
                         "POST /api/flow/mincostflow",
                         "POST /api/flow/hungarian",
@@ -233,6 +238,9 @@ public class HomeController {
                         "POST /api/matrix/search2d",
                         "POST /api/matrix/setzeroes",
                         "POST /api/matrix/wordsearch",
+                        "POST /api/matrix/transpose",
+                        "POST /api/matrix/diagonaltraverse",
+                        "POST /api/matrix/maximalsquare",
                         "POST /api/backtracking/nqueens",
                         "POST /api/backtracking/sudoku",
                         "POST /api/skiplist/insert"

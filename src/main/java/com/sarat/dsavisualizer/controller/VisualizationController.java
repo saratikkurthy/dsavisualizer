@@ -21,6 +21,8 @@ import com.sarat.dsavisualizer.service.ClosestPairService;
 import com.sarat.dsavisualizer.service.ContractionHierarchiesService;
 import com.sarat.dsavisualizer.service.ConvexHullService;
 import com.sarat.dsavisualizer.service.CountingService;
+import com.sarat.dsavisualizer.service.DiagonalTraverseService;
+import com.sarat.dsavisualizer.service.DinicService;
 import com.sarat.dsavisualizer.service.DpService;
 import com.sarat.dsavisualizer.service.EertreeService;
 import com.sarat.dsavisualizer.service.FenwickTreeService;
@@ -37,6 +39,7 @@ import com.sarat.dsavisualizer.service.HldService;
 import com.sarat.dsavisualizer.service.HopcroftKarpService;
 import com.sarat.dsavisualizer.service.HungarianService;
 import com.sarat.dsavisualizer.service.InvertedIndexService;
+import com.sarat.dsavisualizer.service.JohnsonService;
 import com.sarat.dsavisualizer.service.MinCostFlowService;
 import com.sarat.dsavisualizer.service.MosService;
 import com.sarat.dsavisualizer.service.PersistentSegService;
@@ -52,6 +55,7 @@ import com.sarat.dsavisualizer.service.LineSweepService;
 import com.sarat.dsavisualizer.service.LinkedListService;
 import com.sarat.dsavisualizer.service.LruCacheService;
 import com.sarat.dsavisualizer.service.ManacherService;
+import com.sarat.dsavisualizer.service.MaximalSquareService;
 import com.sarat.dsavisualizer.service.MatrixMultService;
 import com.sarat.dsavisualizer.service.MaxFlowService;
 import com.sarat.dsavisualizer.service.PageRankService;
@@ -61,6 +65,7 @@ import com.sarat.dsavisualizer.service.QuadtreeService;
 import com.sarat.dsavisualizer.service.RTreeService;
 import com.sarat.dsavisualizer.service.RabinKarpService;
 import com.sarat.dsavisualizer.service.TfidfService;
+import com.sarat.dsavisualizer.service.TransposeService;
 import com.sarat.dsavisualizer.service.TrafficDijkstraService;
 import com.sarat.dsavisualizer.service.TspService;
 import com.sarat.dsavisualizer.service.YenService;
@@ -79,6 +84,7 @@ import com.sarat.dsavisualizer.service.SkipListService;
 import com.sarat.dsavisualizer.service.SortingService;
 import com.sarat.dsavisualizer.service.SparseTableService;
 import com.sarat.dsavisualizer.service.SpiralOrderService;
+import com.sarat.dsavisualizer.service.StoerWagnerService;
 import com.sarat.dsavisualizer.service.SqrtDecomp2Service;
 import com.sarat.dsavisualizer.service.SqrtDecompService;
 import com.sarat.dsavisualizer.service.StackService;
@@ -99,6 +105,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -401,6 +408,12 @@ public class VisualizationController {
     private final Search2dService search2dService;
     private final SetZeroesService setZeroesService;
     private final WordSearchService wordSearchService;
+    private final DinicService dinicService;
+    private final JohnsonService johnsonService;
+    private final StoerWagnerService stoerWagnerService;
+    private final TransposeService transposeService;
+    private final DiagonalTraverseService diagonalTraverseService;
+    private final MaximalSquareService maximalSquareService;
 
     public VisualizationController(SortingService sortingService,
                                    SearchService searchService,
@@ -488,7 +501,13 @@ public class VisualizationController {
                                    MatrixMultService matrixMultService,
                                    Search2dService search2dService,
                                    SetZeroesService setZeroesService,
-                                   WordSearchService wordSearchService) {
+                                   WordSearchService wordSearchService,
+                                   DinicService dinicService,
+                                   JohnsonService johnsonService,
+                                   StoerWagnerService stoerWagnerService,
+                                   TransposeService transposeService,
+                                   DiagonalTraverseService diagonalTraverseService,
+                                   MaximalSquareService maximalSquareService) {
         this.sortingService = sortingService;
         this.searchService = searchService;
         this.stackService = stackService;
@@ -576,6 +595,12 @@ public class VisualizationController {
         this.search2dService = search2dService;
         this.setZeroesService = setZeroesService;
         this.wordSearchService = wordSearchService;
+        this.dinicService = dinicService;
+        this.johnsonService = johnsonService;
+        this.stoerWagnerService = stoerWagnerService;
+        this.transposeService = transposeService;
+        this.diagonalTraverseService = diagonalTraverseService;
+        this.maximalSquareService = maximalSquareService;
     }
 
     @GetMapping("/health")
@@ -1563,6 +1588,47 @@ public class VisualizationController {
         return ResponseEntity.ok(new TraceResponse("Max Flow", steps));
     }
 
+    // ---- Dinic's max flow, Johnson's all-pairs shortest
+    // paths, Stoer-Wagner global min cut (Phase 31) ----
+
+    @PostMapping("/graph/dinic")
+    public ResponseEntity<?> graphDinic(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateDinic(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = dinicService.dinic(
+                request.getGraphEdges(), request.getStart(),
+                request.getTarget());
+        return ResponseEntity.ok(
+                new TraceResponse("Dinic's Max Flow", steps));
+    }
+
+    @PostMapping("/graph/johnson")
+    public ResponseEntity<?> graphJohnson(@RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateJohnson(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = johnsonService.johnson(
+                request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Johnson's Algorithm", steps));
+    }
+
+    @PostMapping("/graph/stoerwagner")
+    public ResponseEntity<?> graphStoerWagner(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateStoerWagner(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = stoerWagnerService.stoerWagner(
+                request.getGraphEdges());
+        return ResponseEntity.ok(
+                new TraceResponse("Stoer-Wagner Min Cut", steps));
+    }
+
     @PostMapping("/lfu/simulate")
     public ResponseEntity<?> lfuSimulate(@RequestBody TraceRequest request) {
         ResponseEntity<?> error = validateLfu(request);
@@ -2246,6 +2312,48 @@ public class VisualizationController {
                 "Word Search", steps));
     }
 
+    // ---- Transpose, diagonal traverse, maximal square
+    // (Phase 31, matrices v3) ----
+
+    @PostMapping("/matrix/transpose")
+    public ResponseEntity<?> matrixTranspose(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateTranspose(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = transposeService.transpose(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Transpose Matrix", steps));
+    }
+
+    @PostMapping("/matrix/diagonaltraverse")
+    public ResponseEntity<?> matrixDiagonalTraverse(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateDiagonalTraverse(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = diagonalTraverseService.diagonalTraverse(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Diagonal Traverse", steps));
+    }
+
+    @PostMapping("/matrix/maximalsquare")
+    public ResponseEntity<?> matrixMaximalSquare(
+            @RequestBody TraceRequest request) {
+        ResponseEntity<?> error = validateMaximalSquare(request);
+        if (error != null) {
+            return error;
+        }
+        List<Step> steps = maximalSquareService.maximalSquare(
+                request.getWord());
+        return ResponseEntity.ok(new TraceResponse(
+                "Maximal Square", steps));
+    }
+
     // ---- Validation helpers ----
 
     /** 400 when values are missing or empty. Null means "no error". */
@@ -2362,6 +2470,96 @@ public class VisualizationController {
                     .body(Map.of("error", "graphEdges must not be empty"));
         }
         return validateWeights(request, "Boruvka's");
+    }
+
+    /**
+     * Johnson's validation mirrors Floyd-Warshall's
+     * directed-graph validation exactly (non-empty, each
+     * edge [from, to] or [from, to, weight], node ids 0..9)
+     * — no invented limits. Null means "no error".
+     */
+    private ResponseEntity<?> validateJohnson(TraceRequest request) {
+        return validateFloydWarshall(request);
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, shorter than 2
+     * or longer than 12, any edge is not [from, to] or
+     * [from, to, weight], any node id is outside 0..9, any
+     * weight is outside 1..99, or the graph is not
+     * connected. Null means "no error".
+     */
+    private ResponseEntity<?> validateStoerWagner(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        if (request.getGraphEdges().size() < 2
+                || request.getGraphEdges().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "stoer-wagner needs between 2 and 12 edges"));
+        }
+        Set<Integer> nodes = new HashSet<>();
+        Map<Integer, Set<Integer>> adj = new HashMap<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || (edge.size() != 2 && edge.size() != 3)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be [from, to] or "
+                                        + "[from, to, weight]"));
+            }
+            Integer u = edge.get(0);
+            Integer v = edge.get(1);
+            if (u == null || v == null || u < 0 || u > 9
+                    || v < 0 || v > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "stoer-wagner node ids must be between "
+                                        + "0 and 9"));
+            }
+            if (edge.size() == 3 && edge.get(2) != null
+                    && (edge.get(2) < 1 || edge.get(2) > 99)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "stoer-wagner weights must be between "
+                                        + "1 and 99"));
+            }
+            if (u.equals(v)) {
+                continue;
+            }
+            nodes.add(u);
+            nodes.add(v);
+            adj.computeIfAbsent(u, k -> new HashSet<>()).add(v);
+            adj.computeIfAbsent(v, k -> new HashSet<>()).add(u);
+        }
+        if (nodes.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "stoer-wagner needs at least one edge "
+                                    + "between two different nodes"));
+        }
+        // Connected: BFS from the smallest node must reach all.
+        Set<Integer> seen = new HashSet<>();
+        List<Integer> queue = new ArrayList<>();
+        Integer first = nodes.stream().min(Integer::compareTo).orElse(null);
+        queue.add(first);
+        seen.add(first);
+        while (!queue.isEmpty()) {
+            Integer u = queue.remove(0);
+            for (Integer v : adj.getOrDefault(u, Set.of())) {
+                if (seen.add(v)) {
+                    queue.add(v);
+                }
+            }
+        }
+        if (!seen.containsAll(nodes)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "stoer-wagner needs a connected graph"));
+        }
+        return null;
     }
 
     /**
@@ -3503,6 +3701,75 @@ public class VisualizationController {
                         .body(Map.of("error",
                                 "max flow capacity must be between "
                                         + "1 and 99"));
+            }
+            nodes.add(u);
+            nodes.add(v);
+        }
+        if (request.getStart() == null || request.getTarget() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start and target must not be null"));
+        }
+        if (request.getStart().equals(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "source and sink must be different"));
+        }
+        if (!nodes.contains(request.getStart())
+                || !nodes.contains(request.getTarget())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "start and target must be nodes in the "
+                                    + "graph"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when graphEdges is missing/empty, shorter than 2
+     * or longer than 12, any edge is not [from, to,
+     * capacity], any node id is outside 0..9, any capacity
+     * is outside 1..99, start/target is missing, they are
+     * equal, or either is not a node in the graph — the
+     * validateMaxFlow bounds, with Dinic's wording. Null
+     * means "no error".
+     */
+    private ResponseEntity<?> validateDinic(TraceRequest request) {
+        if (request == null || request.getGraphEdges() == null
+                || request.getGraphEdges().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "graphEdges must not be empty"));
+        }
+        if (request.getGraphEdges().size() < 2
+                || request.getGraphEdges().size() > 12) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "dinic's max flow needs between 2 and 12 "
+                                    + "edges"));
+        }
+        Set<Integer> nodes = new HashSet<>();
+        for (List<Integer> edge : request.getGraphEdges()) {
+            if (edge == null || edge.size() != 3) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "each edge must be "
+                                        + "[from, to, capacity]"));
+            }
+            Integer u = edge.get(0);
+            Integer v = edge.get(1);
+            Integer c = edge.get(2);
+            if (u == null || v == null || u < 0 || u > 9
+                    || v < 0 || v > 9) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "dinic's max flow node ids must be "
+                                        + "between 0 and 9"));
+            }
+            if (c == null || c < 1 || c > 99) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error",
+                                "dinic's max flow capacity must be "
+                                        + "between 1 and 99"));
             }
             nodes.add(u);
             nodes.add(v);
@@ -5404,6 +5671,113 @@ public class VisualizationController {
             }
         }
         return null;
+    }
+
+    /**
+     * 400 when the matrix is missing/unparseable (1..6 rows
+     * and 1..6 columns, values -99..99). Rows need not equal
+     * columns — a non-square matrix is the point of the
+     * transpose. Null means "no error".
+     */
+    private ResponseEntity<?> validateTranspose(TraceRequest request) {
+        int[][] matrix = parseSmallMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "transpose needs a matrix of 1..6 rows "
+                                    + "and 1..6 columns, each cell "
+                                    + "between -99 and 99"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the matrix is missing/unparseable (1..6 rows
+     * and 1..6 columns, values -99..99). Null means "no error".
+     */
+    private ResponseEntity<?> validateDiagonalTraverse(
+            TraceRequest request) {
+        int[][] matrix = parseSmallMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "diagonal traverse needs a matrix of "
+                                    + "1..6 rows and 1..6 columns, "
+                                    + "each cell between -99 and 99"));
+        }
+        return null;
+    }
+
+    /**
+     * 400 when the matrix is missing/unparseable (1..6 rows
+     * and 1..6 columns) or any cell is not 0 or 1. Null means
+     * "no error".
+     */
+    private ResponseEntity<?> validateMaximalSquare(TraceRequest request) {
+        int[][] matrix = parseSmallMatrixField(
+                request == null ? null : request.getWord());
+        if (matrix == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error",
+                            "maximal square needs a matrix of 1..6 "
+                                    + "rows and 1..6 columns, each "
+                                    + "cell between -99 and 99"));
+        }
+        for (int[] row : matrix) {
+            for (int v : row) {
+                if (v != 0 && v != 1) {
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error",
+                                    "maximal square needs a binary "
+                                            + "matrix (0s and 1s)"));
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Parses "1,2,3;4,5,6" into an int matrix (1..6 rows,
+     * 1..6 columns, values -99..99, rows all the same
+     * length), or null. Unlike parseMatrixField (2..6 rows
+     * and columns, -999..999), this accepts 1-row and
+     * 1-column matrices, which the Phase 31 matrix
+     * validators need.
+     */
+    private int[][] parseSmallMatrixField(String word) {
+        if (word == null || word.isBlank()) {
+            return null;
+        }
+        String[] rows = word.trim().split(";", -1);
+        if (rows.length < 1 || rows.length > 6) {
+            return null;
+        }
+        int[][] result = null;
+        for (int i = 0; i < rows.length; i++) {
+            String[] cells = rows[i].trim().split(",", -1);
+            if (result == null) {
+                if (cells.length < 1 || cells.length > 6) {
+                    return null;
+                }
+                result = new int[rows.length][cells.length];
+            } else if (cells.length != result[0].length) {
+                return null;
+            }
+            try {
+                for (int j = 0; j < cells.length; j++) {
+                    int v = Integer.parseInt(cells[j].trim());
+                    if (v < -99 || v > 99) {
+                        return null;
+                    }
+                    result[i][j] = v;
+                }
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return result;
     }
 
     /**
