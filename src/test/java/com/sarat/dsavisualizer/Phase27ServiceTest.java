@@ -509,6 +509,8 @@ class Phase27ServiceTest {
 
     // ---- 400s ----
 
+   
+
     private TraceRequest wordRequest(String word) {
         TraceRequest request = new TraceRequest();
         request.setWord(word);
@@ -519,6 +521,5 @@ class Phase27ServiceTest {
                               ResponseEntity<?> response) {
         assertEquals(expected, response.getStatusCode().value());
     }
-
 
 }

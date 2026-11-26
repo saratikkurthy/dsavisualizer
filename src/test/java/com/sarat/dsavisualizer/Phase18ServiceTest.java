@@ -120,7 +120,7 @@ class Phase18ServiceTest {
      * service is called). The parameter order is the
      * constructor's: 28 nulls, then lru, btree, bloom,
      * suffixArray, skipList (33 total). */
-
+    
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());

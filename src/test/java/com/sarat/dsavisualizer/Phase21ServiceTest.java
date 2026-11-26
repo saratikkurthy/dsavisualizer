@@ -82,7 +82,7 @@ class Phase21ServiceTest {
      * the Phase 21 ones (validation 400s before any service is
      * called). The parameter order is the constructor's: 38
      * Phase 1–20 params, then aho, bridges, manacher (41 total). */
-  
+   
     /** Assert the response is a 400. */
     private void assertBadRequest(ResponseEntity<?> response) {
         assertEquals(400, response.getStatusCode().value());
@@ -437,5 +437,6 @@ class Phase21ServiceTest {
     }
 
     // ---- 400 tests (controller validation) ----
+
 
 }
